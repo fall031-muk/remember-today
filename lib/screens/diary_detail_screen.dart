@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../models/diary_entry.dart';
 import '../services/share_service.dart';
 import '../themes/font_themes.dart';
@@ -164,28 +168,232 @@ class _DiaryDetailScreenState extends State<DiaryDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '오늘의 사진',
-            style: GoogleFonts.notoSerif(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '오늘의 사진',
+                style: GoogleFonts.notoSerif(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+              if (_hasImage())
+                Text(
+                  '탭하여 크게 보기',
+                  style: GoogleFonts.notoSerif(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+            ],
           ),
           SizedBox(height: 15),
-          Container(
-            width: double.infinity,
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
+          GestureDetector(
+            onTap: _hasImage() ? () => _showFullScreenImage(context) : null,
+            child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.photo,
-                size: 50,
-                color: Colors.grey[500],
+              child: Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  minHeight: 200,
+                  maxHeight: 400, // 최대 높이 설정
+                ),
+                child: _buildImageWidget(),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _hasImage() {
+    return (widget.diary.imageBytes != null && widget.diary.imageBytes!.isNotEmpty) ||
+           (widget.diary.imagePath != null && widget.diary.imagePath!.isNotEmpty && !kIsWeb);
+  }
+
+  void _showFullScreenImage(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                panEnabled: true,
+                scaleEnabled: true,
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: _buildFullScreenImageWidget(),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullScreenImageWidget() {
+    // 저장된 이미지 바이트 데이터가 있으면 우선 사용
+    if (widget.diary.imageBytes != null && widget.diary.imageBytes!.isNotEmpty) {
+      try {
+        Uint8List imageBytes = base64Decode(widget.diary.imageBytes!);
+        return Image.memory(
+          imageBytes,
+          fit: BoxFit.contain,
+        );
+      } catch (e) {
+        return Container();
+      }
+    }
+    
+    // 파일 경로가 있으면 사용 (모바일에서만)
+    if (widget.diary.imagePath != null && widget.diary.imagePath!.isNotEmpty && !kIsWeb) {
+      return Image.file(
+        File(widget.diary.imagePath!),
+        fit: BoxFit.contain,
+      );
+    }
+    
+    return Container();
+  }
+
+  Widget _buildImageWidget() {
+    // 1. 저장된 이미지 바이트 데이터가 있으면 우선 사용
+    if (widget.diary.imageBytes != null && widget.diary.imageBytes!.isNotEmpty) {
+      try {
+        Uint8List imageBytes = base64Decode(widget.diary.imageBytes!);
+        return Image.memory(
+          imageBytes,
+          width: double.infinity,
+          fit: BoxFit.contain, // 전체 이미지 표시
+          errorBuilder: (context, error, stackTrace) {
+            return _buildErrorWidget('저장된 이미지를 불러올 수 없습니다');
+          },
+        );
+      } catch (e) {
+        print('Base64 디코딩 오류: $e');
+        return _buildErrorWidget('이미지 데이터가 손상되었습니다');
+      }
+    }
+    
+    // 2. 파일 경로가 있으면 사용 (모바일에서만)
+    if (widget.diary.imagePath != null && widget.diary.imagePath!.isNotEmpty) {
+      if (kIsWeb) {
+        return _buildWebNoImageWidget();
+      } else {
+        return Image.file(
+          File(widget.diary.imagePath!),
+          width: double.infinity,
+          fit: BoxFit.contain, // 전체 이미지 표시
+          errorBuilder: (context, error, stackTrace) {
+            return _buildErrorWidget('이미지 파일을 불러올 수 없습니다');
+          },
+        );
+      }
+    }
+    
+    // 3. 이미지가 없는 경우
+    return _buildNoImageWidget();
+  }
+
+  Widget _buildErrorWidget(String message) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.grey[200],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.broken_image,
+            size: 50,
+            color: Colors.grey[500],
+          ),
+          SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.notoSerif(
+              color: Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWebNoImageWidget() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.grey[200],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image,
+            size: 50,
+            color: Colors.grey[500],
+          ),
+          SizedBox(height: 10),
+          Text(
+            '웹에서는 파일 경로로 저장된\n이미지를 표시할 수 없습니다',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.notoSerif(
+              color: Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoImageWidget() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: Colors.grey[100],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.photo,
+            size: 50,
+            color: Colors.grey[500],
+          ),
+          SizedBox(height: 10),
+          Text(
+            '이미지가 없습니다',
+            style: GoogleFonts.notoSerif(
+              color: Colors.grey[600],
+              fontSize: 12,
             ),
           ),
         ],

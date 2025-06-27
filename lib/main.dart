@@ -17,6 +17,8 @@ import 'screens/theme_settings_screen.dart';
 import 'screens/font_settings_screen.dart';
 import 'themes/app_themes.dart';
 import 'themes/font_themes.dart';
+import 'services/image_filter_service.dart';
+import 'dart:convert';
 
 void main() {
   runApp(const RememberTodayApp());
@@ -127,6 +129,9 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
   String _diaryText = '';
   XFile? _selectedImage;
   Uint8List? _selectedImageBytes;
+  Uint8List? _filteredImageBytes;
+  ImageFilterType? _selectedFilter;
+  bool _isProcessingFilter = false;
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
   final TextEditingController _textController = TextEditingController();
@@ -162,6 +167,8 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
           // 이미지는 나중에 처리할 수 있음
           _selectedImage = null;
           _selectedImageBytes = null;
+          _filteredImageBytes = null;
+          _selectedFilter = null;
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -179,6 +186,8 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
           _textController.clear();
           _selectedImage = null;
           _selectedImageBytes = null;
+          _filteredImageBytes = null;
+          _selectedFilter = null;
         });
         
         ScaffoldMessenger.of(context).showSnackBar(
@@ -203,20 +212,152 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
   }
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _selectedImage = image;
-      });
-      
-      // 웹 호환성을 위해 이미지 바이트 읽기
-      if (kIsWeb) {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        print('이미지 선택됨: ${image.path}');
         final bytes = await image.readAsBytes();
+        print('이미지 바이트 크기: ${bytes.length}');
+        
         setState(() {
+          _selectedImage = image;
           _selectedImageBytes = bytes;
+          _filteredImageBytes = null; // 새 이미지 선택시 필터 초기화
+          _selectedFilter = null;
         });
+        
+        print('이미지 상태 업데이트 완료');
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('사진이 선택되었습니다! 🖼️'),
+            backgroundColor: Theme.of(context).primaryColor,
+          ),
+        );
+      } else {
+        print('이미지 선택 취소됨');
       }
+    } catch (e) {
+      print('이미지 선택 오류: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('이미지 선택 중 오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  Future<void> _applyImageFilter(ImageFilterType filterType) async {
+    if (_selectedImageBytes == null) return;
+
+    setState(() {
+      _isProcessingFilter = true;
+      _selectedFilter = filterType;
+    });
+
+    try {
+      Uint8List? filteredBytes;
+
+      switch (filterType) {
+        case ImageFilterType.watercolor:
+          filteredBytes = await ImageFilterService.applyWatercolorEffect(_selectedImageBytes!);
+          break;
+        case ImageFilterType.cartoon:
+          filteredBytes = await ImageFilterService.applyCartoonEffect(_selectedImageBytes!);
+          break;
+        case ImageFilterType.sketch:
+          filteredBytes = await ImageFilterService.applySketchEffect(_selectedImageBytes!);
+          break;
+        case ImageFilterType.vintage:
+          filteredBytes = await ImageFilterService.applyVintageEffect(_selectedImageBytes!);
+          break;
+        case ImageFilterType.oilPainting:
+          filteredBytes = await ImageFilterService.applyOilPaintingEffect(_selectedImageBytes!);
+          break;
+        case ImageFilterType.popArt:
+          filteredBytes = await ImageFilterService.applyPopArtEffect(_selectedImageBytes!);
+          break;
+      }
+
+      if (filteredBytes != null) {
+        setState(() {
+          _filteredImageBytes = filteredBytes;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${FilterInfo.allFilters.firstWhere((f) => f.type == filterType).name} 필터가 적용되었습니다! ✨'),
+            backgroundColor: Theme.of(context).primaryColor,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('필터 적용 중 오류가 발생했습니다: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+
+    setState(() {
+      _isProcessingFilter = false;
+    });
+  }
+
+  void _resetImageFilter() {
+    setState(() {
+      _filteredImageBytes = null;
+      _selectedFilter = null;
+    });
+  }
+
+  void _showFullScreenImage(BuildContext context) {
+    if (_selectedImageBytes == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.all(20),
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                panEnabled: true,
+                scaleEnabled: true,
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: Image.memory(
+                  _filteredImageBytes ?? _selectedImageBytes!,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _saveDiary() async {
@@ -237,6 +378,14 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
     try {
       String selectedDateKey = DateFormat('yyyy-MM-dd').format(_selectedDate);
       
+      // 이미지 바이트를 Base64로 인코딩 (필터 적용된 이미지 우선)
+      String? encodedImageBytes;
+      if (_filteredImageBytes != null) {
+        encodedImageBytes = base64Encode(_filteredImageBytes!);
+      } else if (_selectedImageBytes != null) {
+        encodedImageBytes = base64Encode(_selectedImageBytes!);
+      }
+      
       DiaryEntry newEntry = DiaryEntry(
         id: _currentDiaryId,
         date: selectedDateKey,
@@ -244,6 +393,7 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
         weather: _selectedWeather,
         content: _textController.text,
         imagePath: _selectedImage?.path,
+        imageBytes: encodedImageBytes,
         createdAt: DateTime.now(),
       );
 
@@ -649,63 +799,240 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
             ),
           ),
           SizedBox(height: 15),
-          GestureDetector(
-            onTap: _pickImage,
-            child: Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.grey[300]!,
-                  style: BorderStyle.solid,
-                  width: 2,
+          
+          // 이미지 표시 영역
+          Container(
+            width: double.infinity,
+            constraints: BoxConstraints(
+              minHeight: 200,
+              maxHeight: 400,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: Colors.grey[300]!,
+                style: BorderStyle.solid,
+                width: 2,
+              ),
+            ),
+            child: (_selectedImage != null && _selectedImageBytes != null)
+                ? Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _showFullScreenImage(context),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            _filteredImageBytes ?? _selectedImageBytes!,
+                            width: double.infinity,
+                            fit: BoxFit.contain, // 전체 이미지 표시
+                            errorBuilder: (context, error, stackTrace) {
+                              print('이미지 표시 오류: $error');
+                              return Container(
+                                width: double.infinity,
+                                height: 200,
+                                color: Colors.grey[200],
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.error, color: Colors.red, size: 40),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      '이미지 표시 오류',
+                                      style: GoogleFonts.notoSerif(
+                                        color: Colors.red,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      // 이미지 변경 버튼
+                      Positioned(
+                        top: 10,
+                        right: 10,
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            padding: EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Icon(
+                              Icons.edit,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 전체화면 보기 힌트
+                      Positioned(
+                        bottom: 10,
+                        left: 10,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '탭하여 크게 보기',
+                            style: GoogleFonts.notoSerif(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: double.infinity,
+                      height: 200,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_a_photo,
+                            size: 50,
+                            color: Colors.grey[600],
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            '사진을 추가해보세요',
+                            style: GoogleFonts.notoSerif(
+                              color: Colors.grey[600],
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(height: 5),
+                          Text(
+                            '(그림 필터로 변환 가능)',
+                            style: GoogleFonts.notoSerif(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+          ),
+          
+          // 이미지가 선택된 경우에만 필터 옵션 표시
+          if (_selectedImage != null) ...[
+            SizedBox(height: 20),
+            
+            // 필터 섹션 헤더
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '그림 필터',
+                  style: GoogleFonts.notoSerif(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+                if (_filteredImageBytes != null)
+                  TextButton(
+                    onPressed: _resetImageFilter,
+                    child: Text(
+                      '원본으로',
+                      style: GoogleFonts.notoSerif(
+                        fontSize: 12,
+                        color: Theme.of(context).primaryColor,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            
+            SizedBox(height: 10),
+            
+            // 필터 버튼들
+            if (_isProcessingFilter)
+              Center(
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      '필터 적용 중...',
+                      style: GoogleFonts.notoSerif(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: FilterInfo.allFilters.map((filter) {
+                  final isSelected = _selectedFilter == filter.type;
+                  return GestureDetector(
+                    onTap: () => _applyImageFilter(filter.type),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Theme.of(context).primaryColor : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            filter.emoji,
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            filter.name,
+                            style: GoogleFonts.notoSerif(
+                              fontSize: 12,
+                              color: isSelected ? Colors.white : Colors.grey[700],
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            
+            SizedBox(height: 10),
+            
+            // 필터 설명
+            if (_selectedFilter != null)
+              Text(
+                FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).description,
+                style: GoogleFonts.notoSerif(
+                  fontSize: 11,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
                 ),
               ),
-              child: _selectedImage != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: kIsWeb
-                          ? (_selectedImageBytes != null
-                              ? Image.memory(
-                                  _selectedImageBytes!,
-                                  fit: BoxFit.cover,
-                                )
-                              : Icon(Icons.photo, size: 50, color: Colors.grey[600]))
-                          : Image.file(
-                              File(_selectedImage!.path),
-                              fit: BoxFit.cover,
-                            ),
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_a_photo,
-                          size: 50,
-                          color: Colors.grey[600],
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          '사진을 추가해보세요',
-                          style: GoogleFonts.notoSerif(
-                            color: Colors.grey[600],
-                            fontSize: 16,
-                          ),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          '(추후 그림체로 변환됩니다)',
-                          style: GoogleFonts.notoSerif(
-                            color: Colors.grey[500],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
-          ),
+          ],
         ],
       ),
     );

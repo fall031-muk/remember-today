@@ -21,7 +21,7 @@ class DatabaseService {
     
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) {
         return db.execute('''
           CREATE TABLE $tableName(
@@ -31,9 +31,15 @@ class DatabaseService {
             weather TEXT NOT NULL,
             content TEXT NOT NULL,
             imagePath TEXT,
+            imageBytes TEXT,
             createdAt INTEGER NOT NULL
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) {
+        if (oldVersion < 2) {
+          return db.execute('ALTER TABLE $tableName ADD COLUMN imageBytes TEXT');
+        }
       },
     );
   }
@@ -123,6 +129,7 @@ class DatabaseService {
       weather: entry.weather,
       content: entry.content,
       imagePath: entry.imagePath,
+      imageBytes: entry.imageBytes,
       createdAt: entry.createdAt,
     );
     
