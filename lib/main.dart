@@ -743,30 +743,27 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
   }
 
   Widget _buildDiaryPage() {
-    return PaperTexture(
-      themeType: widget.currentTheme,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.fromLTRB(80, 30, 30, 30), // 왼쪽에 마진선 공간
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 날짜와 기분/날씨 선택
-            _buildDiaryHeader(),
-            SizedBox(height: 40),
-            
-            // 사진 섹션
-            _buildPhotoSection(),
-            SizedBox(height: 40),
-            
-            // 일기 내용
-            _buildDiaryContent(),
-            SizedBox(height: 40),
-            
-            // 액션 버튼들
-            _buildRetroActionButtons(),
-          ],
-        ),
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 날짜와 기분/날씨 선택
+          _buildDiaryHeader(),
+          SizedBox(height: 40),
+          
+          // 사진 섹션
+          _buildPhotoSection(),
+          SizedBox(height: 40),
+          
+          // 일기 내용
+          _buildDiaryContent(),
+          SizedBox(height: 40),
+          
+          // 액션 버튼들
+          _buildRetroActionButtons(),
+        ],
       ),
     );
   }
@@ -901,28 +898,32 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
         SizedBox(height: 20),
         
         // 텍스트 입력 영역 (줄노트 스타일)
-        Container(
-          width: double.infinity,
-          constraints: BoxConstraints(minHeight: 200),
-          child: TextField(
-            controller: _textController,
-            maxLines: null,
-            style: FontThemes.getTextStyle(
-              widget.currentFont,
-              fontSize: 16,
-              color: AppThemes.getPrimaryColor(widget.currentTheme),
-              height: 1.8, // 줄 간격
-            ),
-            decoration: InputDecoration(
-              hintText: '오늘 하루는 어떠셨나요?\n소중한 추억을 기록해보세요...\n\n\n\n\n',
-              hintStyle: FontThemes.getTextStyle(
+        PaperTexture(
+          themeType: widget.currentTheme,
+          child: Container(
+            width: double.infinity,
+            constraints: BoxConstraints(minHeight: 200),
+            padding: EdgeInsets.fromLTRB(80, 30, 30, 30), // 왼쪽에 마진선 공간
+            child: TextField(
+              controller: _textController,
+              maxLines: null,
+              style: FontThemes.getTextStyle(
                 widget.currentFont,
-                fontSize: 14,
-                color: Colors.grey[400]!,
-                height: 1.8,
+                fontSize: 16,
+                color: AppThemes.getPrimaryColor(widget.currentTheme),
+                height: 1.8, // 줄 간격
               ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
+              decoration: InputDecoration(
+                hintText: '오늘 하루는 어떠셨나요?\n소중한 추억을 기록해보세요...\n\n\n\n\n',
+                hintStyle: FontThemes.getTextStyle(
+                  widget.currentFont,
+                  fontSize: 14,
+                  color: Colors.grey[400]!,
+                  height: 1.8,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
         ),
