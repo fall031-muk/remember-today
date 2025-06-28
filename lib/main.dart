@@ -18,7 +18,9 @@ import 'screens/font_settings_screen.dart';
 import 'themes/app_themes.dart';
 import 'themes/font_themes.dart';
 import 'services/image_filter_service.dart';
+import 'themes/diary_decorations.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 
 void main() {
   runApp(const RememberTodayApp());
@@ -32,7 +34,7 @@ class RememberTodayApp extends StatefulWidget {
 }
 
 class _RememberTodayAppState extends State<RememberTodayApp> {
-  AppThemeType _currentTheme = AppThemeType.vintage;
+  AppThemeType _currentTheme = AppThemeType.schoolDiary;
   FontThemeType _currentFont = FontThemeType.nanum;
 
   @override
@@ -49,7 +51,7 @@ class _RememberTodayAppState extends State<RememberTodayApp> {
       setState(() {
         _currentTheme = AppThemeType.values.firstWhere(
           (theme) => theme.toString() == savedTheme,
-          orElse: () => AppThemeType.vintage,
+          orElse: () => AppThemeType.schoolDiary,
         );
       });
     }
@@ -533,34 +535,519 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 헤더
-                _buildHeader(),
-                SizedBox(height: 30),
-                
-                // 날씨와 기분 선택
-                _buildMoodWeatherSelector(),
-                SizedBox(height: 30),
-                
-                // 사진 업로드 섹션
-                _buildPhotoSection(),
-                SizedBox(height: 30),
-                
-                // 일기 작성 섹션 (손글씨 스타일)
-                _buildDiarySection(),
-                SizedBox(height: 30),
-                
-                // 저장 및 목록 버튼
-                _buildActionButtons(),
-              ],
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppThemes.getBackgroundColor(widget.currentTheme),
+              AppThemes.getBackgroundColor(widget.currentTheme).withOpacity(0.8),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  // 90년대 스타일 헤더
+                  _buildRetroHeader(),
+                  SizedBox(height: 20),
+                  
+                  // 일기장 페이지
+                  _buildDiaryPage(),
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRetroHeader() {
+    String selectedDateStr = DateFormat('yyyy년 MM월 dd일 EEEE', 'ko_KR').format(_selectedDate);
+    bool isToday = DateFormat('yyyy-MM-dd').format(_selectedDate) == DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(20),
+          margin: EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppThemes.getPrimaryColor(widget.currentTheme),
+                AppThemes.getAccentColor(widget.currentTheme),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                offset: Offset(0, 6),
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '📖 내 일기장',
+                        style: GoogleFonts.permanentMarker(
+                          fontSize: 24,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.5),
+                              offset: Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        selectedDateStr,
+                        style: GoogleFonts.notoSerif(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (!isToday)
+                    RetroButton(
+                      text: '오늘로',
+                      color: Colors.white.withOpacity(0.2),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDate = DateTime.now();
+                          _currentDiaryId = null;
+                          _selectedMood = '😊';
+                          _selectedWeather = '☀️';
+                          _textController.clear();
+                          _selectedImage = null;
+                          _selectedImageBytes = null;
+                          _filteredImageBytes = null;
+                          _selectedFilter = null;
+                        });
+                      },
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // 테마별 장식 스티커들
+        ...(_getThemeStickers()),
+      ],
+    );
+  }
+
+  List<Widget> _getThemeStickers() {
+    switch (widget.currentTheme) {
+      case AppThemeType.schoolDiary:
+        return [
+          Positioned(
+            top: 5,
+            right: 20,
+            child: RetroSticker(
+              emoji: '✏️',
+              text: '',
+              backgroundColor: Colors.orange,
+              rotation: 0.2,
+            ),
+          ),
+        ];
+      case AppThemeType.candyShop:
+        return [
+          Positioned(
+            top: 10,
+            right: 15,
+            child: RetroSticker(
+              emoji: '💖',
+              text: '',
+              backgroundColor: Colors.pink,
+              rotation: -0.3,
+            ),
+          ),
+          Positioned(
+            bottom: 10,
+            left: 15,
+            child: RetroSticker(
+              emoji: '🍭',
+              text: '',
+              backgroundColor: Colors.red,
+              rotation: 0.4,
+            ),
+          ),
+        ];
+      case AppThemeType.summerVacation:
+        return [
+          Positioned(
+            top: 8,
+            right: 18,
+            child: RetroSticker(
+              emoji: '🌊',
+              text: '',
+              backgroundColor: Colors.blue,
+              rotation: 0.1,
+            ),
+          ),
+        ];
+      case AppThemeType.autumnLeaf:
+        return [
+          Positioned(
+            top: 12,
+            right: 25,
+            child: RetroSticker(
+              emoji: '🍂',
+              text: '',
+              backgroundColor: Colors.orange,
+              rotation: -0.2,
+            ),
+          ),
+        ];
+      case AppThemeType.winterStory:
+        return [
+          Positioned(
+            top: 15,
+            right: 20,
+            child: RetroSticker(
+              emoji: '❄️',
+              text: '',
+              backgroundColor: Colors.blue,
+              rotation: 0.3,
+            ),
+          ),
+        ];
+      default:
+        return [];
+    }
+  }
+
+  Widget _buildDiaryPage() {
+    return PaperTexture(
+      themeType: widget.currentTheme,
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.fromLTRB(80, 30, 30, 30), // 왼쪽에 마진선 공간
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 날짜와 기분/날씨 선택
+            _buildDiaryHeader(),
+            SizedBox(height: 40),
+            
+            // 사진 섹션
+            _buildPhotoSection(),
+            SizedBox(height: 40),
+            
+            // 일기 내용
+            _buildDiaryContent(),
+            SizedBox(height: 40),
+            
+            // 액션 버튼들
+            _buildRetroActionButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiaryHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 손으로 쓴 듯한 날짜
+        Transform.rotate(
+          angle: -0.02, // 살짝 기울어진 효과
+          child: Text(
+            DateFormat('yyyy년 MM월 dd일').format(_selectedDate),
+            style: FontThemes.getTextStyle(
+              widget.currentFont,
+              fontSize: 18,
+              color: AppThemes.getPrimaryColor(widget.currentTheme),
+              height: 1.0,
+            ).copyWith(
+              decoration: TextDecoration.underline,
+              decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.5),
+            ),
+          ),
+        ),
+        
+        SizedBox(height: 20),
+        
+        // 기분과 날씨 선택 (스티커 스타일)
+        Row(
+          children: [
+            Text(
+              '오늘 기분: ',
+              style: FontThemes.getTextStyle(
+                widget.currentFont,
+                fontSize: 14,
+                color: AppThemes.getPrimaryColor(widget.currentTheme),
+              ),
+            ),
+            SizedBox(width: 10),
+            Wrap(
+              spacing: 8,
+              children: _moods.map((mood) {
+                final isSelected = _selectedMood == mood;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedMood = mood),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                        ? AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.3)
+                        : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      border: isSelected 
+                        ? Border.all(color: AppThemes.getPrimaryColor(widget.currentTheme), width: 2)
+                        : null,
+                    ),
+                    child: Center(
+                      child: Text(mood, style: TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+        
+        SizedBox(height: 15),
+        
+        Row(
+          children: [
+            Text(
+              '오늘 날씨: ',
+              style: FontThemes.getTextStyle(
+                widget.currentFont,
+                fontSize: 14,
+                color: AppThemes.getPrimaryColor(widget.currentTheme),
+              ),
+            ),
+            SizedBox(width: 10),
+            Wrap(
+              spacing: 8,
+              children: _weathers.map((weather) {
+                final isSelected = _selectedWeather == weather;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedWeather = weather),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: isSelected 
+                        ? AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.3)
+                        : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      border: isSelected 
+                        ? Border.all(color: AppThemes.getPrimaryColor(widget.currentTheme), width: 2)
+                        : null,
+                    ),
+                    child: Center(
+                      child: Text(weather, style: TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+             ],
+     );
+   }
+
+  Widget _buildDiaryContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 일기 제목 (손글씨 스타일)
+        Transform.rotate(
+          angle: -0.01,
+          child: Text(
+            '오늘의 이야기',
+            style: FontThemes.getTextStyle(
+              widget.currentFont,
+              fontSize: 16,
+              color: AppThemes.getPrimaryColor(widget.currentTheme),
+            ).copyWith(
+              decoration: TextDecoration.underline,
+              decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
+            ),
+          ),
+        ),
+        
+        SizedBox(height: 20),
+        
+        // 텍스트 입력 영역 (줄노트 스타일)
+        Container(
+          width: double.infinity,
+          constraints: BoxConstraints(minHeight: 200),
+          child: TextField(
+            controller: _textController,
+            maxLines: null,
+            style: FontThemes.getTextStyle(
+              widget.currentFont,
+              fontSize: 16,
+              color: AppThemes.getPrimaryColor(widget.currentTheme),
+              height: 1.8, // 줄 간격
+            ),
+            decoration: InputDecoration(
+              hintText: '오늘 하루는 어떠셨나요?\n소중한 추억을 기록해보세요...\n\n\n\n\n',
+              hintStyle: FontThemes.getTextStyle(
+                widget.currentFont,
+                fontSize: 14,
+                color: Colors.grey[400]!,
+                height: 1.8,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRetroActionButtons() {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          // 메인 액션 버튼들
+          Row(
+            children: [
+              Expanded(
+                child: RetroButton(
+                  text: _currentDiaryId != null ? '수정하기' : '저장하기',
+                  icon: _currentDiaryId != null ? Icons.edit : Icons.save,
+                  color: AppThemes.getPrimaryColor(widget.currentTheme),
+                  onPressed: _isLoading ? () {} : _saveDiary,
+                ),
+              ),
+              SizedBox(width: 15),
+              Expanded(
+                child: RetroButton(
+                  text: '일기 목록',
+                  icon: Icons.list,
+                  color: AppThemes.getAccentColor(widget.currentTheme),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => DiaryListScreen()),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          
+          SizedBox(height: 15),
+          
+          // 보조 버튼들 (작은 스티커 스타일)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildMiniButton('🔍', '검색', () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => DiarySearchScreen()),
+                );
+              }),
+              _buildMiniButton('📅', '캘린더', () async {
+                final selectedDate = await Navigator.push<DateTime>(
+                  context,
+                  MaterialPageRoute(builder: (context) => DiaryCalendarScreen()),
+                );
+                if (selectedDate != null) {
+                  _loadDiaryForDate(selectedDate);
+                }
+              }),
+              _buildMiniButton('🎨', '테마', () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ThemeSettingsScreen(
+                      currentTheme: widget.currentTheme,
+                      onThemeChanged: widget.onThemeChanged,
+                    ),
+                  ),
+                );
+              }),
+              _buildMiniButton('✍️', '글씨체', () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FontSettingsScreen(
+                      currentFont: widget.currentFont,
+                      onFontChanged: widget.onFontChanged,
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniButton(String emoji, String label, VoidCallback onPressed) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.2),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              offset: Offset(0, 2),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 20)),
+            SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8,
+                color: AppThemes.getPrimaryColor(widget.currentTheme),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -773,416 +1260,238 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
   }
 
   Widget _buildPhotoSection() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 사진 제목 (손글씨 스타일)
+        Transform.rotate(
+          angle: 0.01,
+          child: Text(
             '오늘의 사진',
-            style: GoogleFonts.notoSerif(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-          SizedBox(height: 15),
-          
-          // 이미지 표시 영역
-          Container(
-            width: double.infinity,
-            constraints: BoxConstraints(
-              minHeight: 200,
-              maxHeight: 400,
-            ),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: Colors.grey[300]!,
-                style: BorderStyle.solid,
-                width: 2,
-              ),
-            ),
-            child: (_selectedImage != null && _selectedImageBytes != null)
-                ? Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: () => _showFullScreenImage(context),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            _filteredImageBytes ?? _selectedImageBytes!,
-                            width: double.infinity,
-                            fit: BoxFit.contain, // 전체 이미지 표시
-                            errorBuilder: (context, error, stackTrace) {
-                              print('이미지 표시 오류: $error');
-                              return Container(
-                                width: double.infinity,
-                                height: 200,
-                                color: Colors.grey[200],
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.error, color: Colors.red, size: 40),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      '이미지 표시 오류',
-                                      style: GoogleFonts.notoSerif(
-                                        color: Colors.red,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      // 이미지 변경 버튼
-                      Positioned(
-                        top: 10,
-                        right: 10,
-                        child: GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            padding: EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Icon(
-                              Icons.edit,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // 전체화면 보기 힌트
-                      Positioned(
-                        bottom: 10,
-                        left: 10,
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '탭하여 크게 보기',
-                            style: GoogleFonts.notoSerif(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      width: double.infinity,
-                      height: 200,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.add_a_photo,
-                            size: 50,
-                            color: Colors.grey[600],
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            '사진을 추가해보세요',
-                            style: GoogleFonts.notoSerif(
-                              color: Colors.grey[600],
-                              fontSize: 16,
-                            ),
-                          ),
-                          SizedBox(height: 5),
-                          Text(
-                            '(그림 필터로 변환 가능)',
-                            style: GoogleFonts.notoSerif(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-          ),
-          
-          // 이미지가 선택된 경우에만 필터 옵션 표시
-          if (_selectedImage != null) ...[
-            SizedBox(height: 20),
-            
-            // 필터 섹션 헤더
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '그림 필터',
-                  style: GoogleFonts.notoSerif(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-                if (_filteredImageBytes != null)
-                  TextButton(
-                    onPressed: _resetImageFilter,
-                    child: Text(
-                      '원본으로',
-                      style: GoogleFonts.notoSerif(
-                        fontSize: 12,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            
-            SizedBox(height: 10),
-            
-            // 필터 버튼들
-            if (_isProcessingFilter)
-              Center(
-                child: Column(
-                  children: [
-                    CircularProgressIndicator(
-                      color: Theme.of(context).primaryColor,
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      '필터 적용 중...',
-                      style: GoogleFonts.notoSerif(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: FilterInfo.allFilters.map((filter) {
-                  final isSelected = _selectedFilter == filter.type;
-                  return GestureDetector(
-                    onTap: () => _applyImageFilter(filter.type),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Theme.of(context).primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            filter.emoji,
-                            style: TextStyle(fontSize: 16),
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            filter.name,
-                            style: GoogleFonts.notoSerif(
-                              fontSize: 12,
-                              color: isSelected ? Colors.white : Colors.grey[700],
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            
-            SizedBox(height: 10),
-            
-            // 필터 설명
-            if (_selectedFilter != null)
-              Text(
-                FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).description,
-                style: GoogleFonts.notoSerif(
-                  fontSize: 11,
-                  color: Colors.grey[500],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDiarySection() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '오늘의 이야기',
-            style: GoogleFonts.notoSerif(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-          SizedBox(height: 15),
-          TextField(
-            maxLines: 8,
-            controller: _textController,
             style: FontThemes.getTextStyle(
               widget.currentFont,
-              fontSize: 18,
-              color: Theme.of(context).primaryColor,
-              height: 1.5,
-            ),
-            decoration: InputDecoration(
-              hintText: '오늘 하루는 어떠셨나요?\n소중한 추억을 기록해보세요...',
-              hintStyle: GoogleFonts.notoSerif(
-                color: Colors.grey[500],
-                fontSize: 14,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Colors.grey[300]!),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
-              ),
-              contentPadding: EdgeInsets.all(15),
+              fontSize: 16,
+              color: AppThemes.getPrimaryColor(widget.currentTheme),
+            ).copyWith(
+              decoration: TextDecoration.underline,
+              decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
             ),
           ),
-          SizedBox(height: 10),
-          Text(
-            '* 손글씨 스타일로 표시됩니다',
-            style: GoogleFonts.notoSerif(
-              color: Colors.grey[500],
-              fontSize: 12,
+        ),
+        
+        SizedBox(height: 15),
+        
+        // 사진 영역 (폴라로이드 스타일)
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: Offset(2, 2),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(15),
+            child: Column(
+              children: [
+                // 폴라로이드 사진 영역
+                Container(
+                  width: double.infinity,
+                  constraints: BoxConstraints(
+                    minHeight: 180,
+                    maxHeight: 300,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: (_selectedImage != null && _selectedImageBytes != null)
+                      ? Stack(
+                          children: [
+                            GestureDetector(
+                              onTap: () => _showFullScreenImage(context),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: Image.memory(
+                                  _filteredImageBytes ?? _selectedImageBytes!,
+                                  width: double.infinity,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                            // 레트로 스타일 편집 버튼
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: RetroSticker(
+                                emoji: '✏️',
+                                text: '',
+                                backgroundColor: AppThemes.getAccentColor(widget.currentTheme),
+                                rotation: 0.1,
+                              ),
+                            ),
+                          ],
+                        )
+                      : GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            width: double.infinity,
+                            height: 180,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.grey[300]!,
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_a_photo,
+                                  size: 40,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  '📷 사진 추가하기',
+                                  style: FontThemes.getTextStyle(
+                                    widget.currentFont,
+                                    fontSize: 14,
+                                    color: Colors.grey[500]!,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  '(그림 필터로 변환 가능)',
+                                  style: FontThemes.getTextStyle(
+                                    widget.currentFont,
+                                    fontSize: 10,
+                                    color: Colors.grey[400]!,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                ),
+                
+                // 폴라로이드 하단 메모 공간
+                if (_selectedImage != null && _selectedImageBytes != null) ...[
+                  SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    height: 40,
+                    child: Center(
+                      child: Transform.rotate(
+                        angle: -0.02,
+                        child: Text(
+                          _selectedFilter != null 
+                            ? '${FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).name} 필터 적용됨'
+                            : '오늘의 추억 📸',
+                          style: FontThemes.getTextStyle(
+                            widget.currentFont,
+                            fontSize: 12,
+                            color: Colors.grey[600]!,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+        ),
+        
+        // 필터 섹션
+        if (_selectedImage != null) ...[
+          SizedBox(height: 15),
+          _buildRetroFilterSection(),
         ],
-      ),
+      ],
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildRetroFilterSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 저장 버튼
-        Container(
-          width: double.infinity,
-          height: 60,
-          child: ElevatedButton(
-            onPressed: _isLoading ? null : _saveDiary,
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
-              ),
-              elevation: 5,
-            ),
-            child: _isLoading
-                ? CircularProgressIndicator(color: Colors.white)
-                : Text(
-                    _currentDiaryId != null 
-                        ? '${DateFormat('MM월 dd일').format(_selectedDate)} 일기 수정하기'
-                        : '${DateFormat('MM월 dd일').format(_selectedDate)} 일기 저장하기',
-                    style: GoogleFonts.notoSerif(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-          ),
-        ),
-        SizedBox(height: 15),
-        
-        // 기능 버튼들
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DiaryListScreen(),
-                    ),
-                  );
-                },
-                icon: Icon(Icons.book),
-                label: Text('일기장'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+            Transform.rotate(
+              angle: -0.01,
+              child: Text(
+                '🎨 그림 필터',
+                style: FontThemes.getTextStyle(
+                  widget.currentFont,
+                  fontSize: 14,
+                  color: AppThemes.getPrimaryColor(widget.currentTheme),
+                ).copyWith(
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
                 ),
               ),
             ),
-            SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  final selectedDate = await Navigator.push<DateTime>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => DiaryCalendarScreen(),
-                    ),
-                  );
-                  if (selectedDate != null) {
-                    _loadDiaryForDate(selectedDate);
-                  }
-                },
-                icon: Icon(Icons.calendar_month),
-                label: Text('캘린더'),
-                style: OutlinedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+            if (_filteredImageBytes != null)
+              GestureDetector(
+                onTap: _resetImageFilter,
+                child: RetroSticker(
+                  emoji: '🔄',
+                  text: '원본',
+                  backgroundColor: Colors.grey[600]!,
+                  rotation: 0.05,
                 ),
               ),
-            ),
           ],
         ),
+        
+        SizedBox(height: 10),
+        
+        if (_isProcessingFilter)
+          Center(
+            child: Column(
+              children: [
+                CircularProgressIndicator(
+                  color: AppThemes.getPrimaryColor(widget.currentTheme),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '마법을 부리는 중... ✨',
+                  style: FontThemes.getTextStyle(
+                    widget.currentFont,
+                    fontSize: 12,
+                    color: Colors.grey[600]!,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: FilterInfo.allFilters.map((filter) {
+              final isSelected = _selectedFilter == filter.type;
+              return GestureDetector(
+                onTap: () => _applyImageFilter(filter.type),
+                child: RetroSticker(
+                  emoji: filter.emoji,
+                  text: filter.name,
+                  backgroundColor: isSelected 
+                    ? AppThemes.getPrimaryColor(widget.currentTheme)
+                    : AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.7),
+                  rotation: (FilterInfo.allFilters.indexOf(filter) % 3 - 1) * 0.1,
+                ),
+              );
+            }).toList(),
+          ),
       ],
     );
   }

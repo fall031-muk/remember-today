@@ -53,22 +53,50 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '레트로 감성 테마를 선택해보세요',
-              style: GoogleFonts.notoSerif(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).primaryColor.withOpacity(0.1),
+                    spreadRadius: 1,
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '🎨 90년대 그림일기 테마',
+                    style: GoogleFonts.notoSerif(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '어린 시절 추억이 담긴 감성 테마를 선택해보세요',
+                    style: GoogleFonts.notoSerif(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
             SizedBox(height: 20),
             Expanded(
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                  crossAxisCount: 1,
                   crossAxisSpacing: 15,
                   mainAxisSpacing: 15,
-                  childAspectRatio: 1.2,
+                  childAspectRatio: 3.5,
                 ),
                 itemCount: AppThemeType.values.length,
                 itemBuilder: (context, index) {
@@ -90,11 +118,14 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
     final backgroundColor = AppThemes.getBackgroundColor(themeType);
     final accentColor = AppThemes.getAccentColor(themeType);
     final themeName = AppThemes.getThemeName(themeType);
+    final themeDescription = AppThemes.getThemeDescription(themeType);
+    final themeEmoji = AppThemes.getThemeEmoji(themeType);
 
     return GestureDetector(
       onTap: () => _saveTheme(themeType),
       child: Container(
         decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
             color: isSelected ? primaryColor : Colors.grey[300]!,
@@ -104,73 +135,89 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
             BoxShadow(
               color: primaryColor.withOpacity(0.2),
               spreadRadius: 1,
-              blurRadius: 5,
-              offset: Offset(0, 2),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ],
         ),
-        child: Column(
+        child: Row(
           children: [
-            // 테마 색상 미리보기
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryColor, accentColor],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(14),
-                    topRight: Radius.circular(14),
-                  ),
+            // 테마 색상 미리보기 (왼쪽)
+            Container(
+              width: 80,
+              height: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryColor, accentColor],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-                child: isSelected
-                    ? Icon(
-                        Icons.check_circle,
-                        color: Colors.white,
-                        size: 30,
-                      )
-                    : null,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(14),
+                  bottomLeft: Radius.circular(14),
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    themeEmoji,
+                    style: TextStyle(fontSize: 32),
+                  ),
+                  if (isSelected) ...[
+                    SizedBox(height: 8),
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '선택됨',
+                        style: GoogleFonts.notoSerif(
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            // 테마 이름
+            
+            // 테마 정보 (오른쪽)
             Expanded(
-              flex: 2,
               child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(8),
+                padding: EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: backgroundColor,
+                  color: backgroundColor.withOpacity(0.3),
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(14),
+                    topRight: Radius.circular(14),
                     bottomRight: Radius.circular(14),
                   ),
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       themeName,
                       style: GoogleFonts.notoSerif(
-                        fontSize: 12,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
                         color: primaryColor,
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                    if (isSelected) ...[
-                      SizedBox(height: 4),
-                      Text(
-                        '선택됨',
-                        style: GoogleFonts.notoSerif(
-                          fontSize: 10,
-                          color: primaryColor.withOpacity(0.7),
-                        ),
+                    SizedBox(height: 4),
+                    Text(
+                      themeDescription,
+                      style: GoogleFonts.notoSerif(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        height: 1.3,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),

@@ -2,51 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 enum AppThemeType {
-  vintage, // 기본 브라운
-  sunset, // 주황/빨강
-  forest, // 초록
-  ocean, // 파랑
-  lavender, // 보라
-  rose, // 핑크
+  schoolDiary, // 학교 일기장 (노란색 공책)
+  candyShop, // 문방구 사탕가게 (분홍/빨강)
+  summerVacation, // 여름방학 (하늘색/민트)
+  autumnLeaf, // 가을 단풍 (주황/갈색)
+  winterStory, // 겨울 이야기 (보라/남색)
 }
 
 class AppThemes {
   static const Map<AppThemeType, Map<String, dynamic>> _themes = {
-    AppThemeType.vintage: {
-      'name': '빈티지 브라운',
-      'primary': 0xFF8B4513,
-      'background': 0xFFFFF8E7,
-      'accent': 0xFFCD853F,
+    AppThemeType.schoolDiary: {
+      'name': '📒 학교 일기장',
+      'description': '노란 공책과 연필의 추억',
+      'primary': 0xFFE6B800, // 진한 노랑 (연필심 색)
+      'background': 0xFFFFFAE6, // 연한 크림 노랑 (공책 색)
+      'accent': 0xFFFF9500, // 주황 (형광펜 색)
+      'emoji': '📒',
     },
-    AppThemeType.sunset: {
-      'name': '석양 오렌지',
-      'primary': 0xFFD2691E,
-      'background': 0xFFFFF5EE,
-      'accent': 0xFFFF7F50,
+    AppThemeType.candyShop: {
+      'name': '🍭 문방구 사탕가게',
+      'description': '달콤한 사탕과 스티커의 추억',
+      'primary': 0xFFE91E63, // 진한 핑크 (사탕 색)
+      'background': 0xFFFCE4EC, // 연한 핑크 (솜사탕 색)
+      'accent': 0xFFFF5722, // 빨강 (딸기맛 색)
+      'emoji': '🍭',
     },
-    AppThemeType.forest: {
-      'name': '숲속 그린',
-      'primary': 0xFF556B2F,
-      'background': 0xFFF0FFF0,
-      'accent': 0xFF9ACD32,
+    AppThemeType.summerVacation: {
+      'name': '🌊 여름방학',
+      'description': '바다와 수박의 시원한 추억',
+      'primary': 0xFF00BCD4, // 하늘색 (바다 색)
+      'background': 0xFFE0F7FA, // 연한 민트 (시원한 색)
+      'accent': 0xFF4CAF50, // 초록 (수박 껍질 색)
+      'emoji': '🌊',
     },
-    AppThemeType.ocean: {
-      'name': '바다 블루',
-      'primary': 0xFF4682B4,
-      'background': 0xFFF0F8FF,
-      'accent': 0xFF87CEEB,
+    AppThemeType.autumnLeaf: {
+      'name': '🍂 가을 단풍',
+      'description': '낙엽과 고구마의 따뜻한 추억',
+      'primary': 0xFFFF6F00, // 주황 (단풍 색)
+      'background': 0xFFFFF3E0, // 연한 주황 (석양 색)
+      'accent': 0xFF8D6E63, // 갈색 (나무 색)
+      'emoji': '🍂',
     },
-    AppThemeType.lavender: {
-      'name': '라벤더 퍼플',
-      'primary': 0xFF9370DB,
-      'background': 0xFFF8F0FF,
-      'accent': 0xFFDDA0DD,
-    },
-    AppThemeType.rose: {
-      'name': '로즈 핑크',
-      'primary': 0xFFBC8F8F,
-      'background': 0xFFFFF0F5,
-      'accent': 0xFFFFB6C1,
+    AppThemeType.winterStory: {
+      'name': '❄️ 겨울 이야기',
+      'description': '눈과 호빵의 포근한 추억',
+      'primary': 0xFF3F51B5, // 남색 (겨울 하늘 색)
+      'background': 0xFFF3F5FF, // 연한 보라 (눈 오는 하늘 색)
+      'accent': 0xFF9C27B0, // 보라 (겨울 꽃 색)
+      'emoji': '❄️',
     },
   };
 
@@ -106,6 +109,14 @@ class AppThemes {
 
   static Color getAccentColor(AppThemeType themeType) {
     return Color(_themes[themeType]!['accent']);
+  }
+
+  static String getThemeDescription(AppThemeType themeType) {
+    return _themes[themeType]!['description'] ?? '';
+  }
+
+  static String getThemeEmoji(AppThemeType themeType) {
+    return _themes[themeType]!['emoji'] ?? '';
   }
 
   static MaterialColor _createMaterialColor(Color color) {

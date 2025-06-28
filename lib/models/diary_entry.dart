@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-업ㄹclass DiaryEntry {
+class DiaryEntry {
   final int? id;
   final String date;
   final String mood;
