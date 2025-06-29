@@ -1456,15 +1456,49 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
         SizedBox(height: 10),
         
         if (_isProcessingFilter)
-          Center(
+          Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
+                width: 2,
+              ),
+            ),
             child: Column(
               children: [
-                CircularProgressIndicator(
-                  color: AppThemes.getPrimaryColor(widget.currentTheme),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 60,
+                      height: 60,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 4,
+                        color: AppThemes.getPrimaryColor(widget.currentTheme),
+                        backgroundColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.2),
+                      ),
+                    ),
+                    Icon(
+                      Icons.auto_fix_high,
+                      color: AppThemes.getPrimaryColor(widget.currentTheme),
+                      size: 24,
+                    ),
+                  ],
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: 15),
                 Text(
-                  '마법을 부리는 중... ✨',
+                  '🎨 그림으로 변환 중...',
+                  style: FontThemes.getTextStyle(
+                    widget.currentFont,
+                    fontSize: 14,
+                    color: AppThemes.getPrimaryColor(widget.currentTheme),
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  '잠시만 기다려주세요 ✨',
                   style: FontThemes.getTextStyle(
                     widget.currentFont,
                     fontSize: 12,

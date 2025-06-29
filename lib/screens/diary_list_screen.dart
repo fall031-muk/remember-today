@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../models/diary_entry.dart';
 import '../services/database_service.dart';
 import '../themes/font_themes.dart';
@@ -63,9 +65,9 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
       appBar: AppBar(
         title: Text(
           '나의 일기장',
-          style: GoogleFonts.notoSerif(
+          style: FontThemes.getTextStyle(
+            _currentFont,
             fontSize: 20,
-            fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
@@ -98,17 +100,19 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
           SizedBox(height: 20),
           Text(
             '아직 작성된 일기가 없어요',
-            style: GoogleFonts.notoSerif(
+            style: FontThemes.getTextStyle(
+              _currentFont,
               fontSize: 18,
-              color: Colors.grey[600],
+              color: Colors.grey[600]!,
             ),
           ),
           SizedBox(height: 10),
           Text(
             '첫 번째 일기를 작성해보세요!',
-            style: GoogleFonts.notoSerif(
+            style: FontThemes.getTextStyle(
+              _currentFont,
               fontSize: 14,
-              color: Colors.grey[500],
+              color: Colors.grey[500]!,
             ),
           ),
         ],
@@ -151,73 +155,113 @@ class _DiaryListScreenState extends State<DiaryListScreen> {
         borderRadius: BorderRadius.circular(15),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    formattedDate,
-                    style: GoogleFonts.notoSerif(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF8B4513),
-                    ),
+              // 사진 썸네일
+              if (diary.imageBytes != null) ...[
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
                   ),
-                  Row(
-                    children: [
-                      Text(
-                        diary.weather,
-                        style: TextStyle(fontSize: 20),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        diary.mood,
-                        style: TextStyle(fontSize: 20),
-                      ),
-                    ],
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildThumbnailImage(diary.imageBytes!),
                   ),
-                ],
-              ),
-              SizedBox(height: 12),
-              Text(
-                diary.content.length > 100 
-                    ? '${diary.content.substring(0, 100)}...'
-                    : diary.content,
-                style: FontThemes.getTextStyle(
-                  _currentFont,
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                  height: 1.5,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (diary.imagePath != null) ...[
-                SizedBox(height: 12),
-                Row(
+                SizedBox(width: 15),
+              ],
+              
+              // 일기 내용
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      Icons.photo,
-                      size: 16,
-                      color: Colors.grey[500],
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          formattedDate,
+                          style: FontThemes.getTextStyle(
+                            _currentFont,
+                            fontSize: 16,
+                            color: Color(0xFF8B4513),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              diary.weather,
+                              style: TextStyle(fontSize: 20),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              diary.mood,
+                              style: TextStyle(fontSize: 20),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    SizedBox(width: 4),
+                    SizedBox(height: 12),
                     Text(
-                      '사진 포함',
-                      style: GoogleFonts.notoSerif(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+                      diary.content.length > 100 
+                          ? '${diary.content.substring(0, 100)}...'
+                          : diary.content,
+                      style: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        height: 1.5,
                       ),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-              ],
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildThumbnailImage(String imagePath) {
+    try {
+      Uint8List imageBytes = base64Decode(imagePath);
+      return Image.memory(
+        imageBytes,
+        fit: BoxFit.cover,
+        width: 60,
+        height: 60,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 60,
+            height: 60,
+            color: Colors.grey[200],
+            child: Icon(
+              Icons.broken_image,
+              color: Colors.grey[400],
+              size: 30,
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      return Container(
+        width: 60,
+        height: 60,
+        color: Colors.grey[200],
+        child: Icon(
+          Icons.photo,
+          color: Colors.grey[400],
+          size: 30,
+        ),
+      );
+    }
   }
 } 

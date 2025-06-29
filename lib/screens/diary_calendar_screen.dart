@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import '../models/diary_entry.dart';
 import '../services/database_service.dart';
 import '../services/share_service.dart';
+import '../themes/font_themes.dart';
+import '../themes/app_themes.dart';
 import 'diary_detail_screen.dart';
 
 class DiaryCalendarScreen extends StatefulWidget {
@@ -20,12 +25,41 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
   DateTime? _selectedDay;
   Map<String, DiaryEntry> _diaryEntries = {};
   bool _isLoading = true;
+  FontThemeType _currentFont = FontThemeType.nanum;
+  AppThemeType _currentTheme = AppThemeType.schoolDiary;
 
   @override
   void initState() {
     super.initState();
     _selectedDay = DateTime.now();
+    _loadSavedSettings();
     _loadDiaryEntries();
+  }
+
+  Future<void> _loadSavedSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 글씨체 불러오기
+    final savedFont = prefs.getString('app_font');
+    if (savedFont != null) {
+      setState(() {
+        _currentFont = FontThemeType.values.firstWhere(
+          (font) => font.toString() == savedFont,
+          orElse: () => FontThemeType.nanum,
+        );
+      });
+    }
+    
+    // 테마 불러오기
+    final savedTheme = prefs.getString('app_theme');
+    if (savedTheme != null) {
+      setState(() {
+        _currentTheme = AppThemeType.values.firstWhere(
+          (theme) => theme.toString() == savedTheme,
+          orElse: () => AppThemeType.schoolDiary,
+        );
+      });
+    }
   }
 
   Future<void> _loadDiaryEntries() async {
@@ -64,9 +98,9 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
       appBar: AppBar(
         title: Text(
           '일기 캘린더',
-          style: GoogleFonts.notoSerif(
+          style: FontThemes.getTextStyle(
+            _currentFont,
             fontSize: 20,
-            fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
@@ -112,6 +146,7 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
                     calendarFormat: _calendarFormat,
                     eventLoader: _getEventsForDay,
                     startingDayOfWeek: StartingDayOfWeek.monday,
+                    locale: 'ko_KR',
                     selectedDayPredicate: (day) {
                       return isSameDay(_selectedDay, day);
                     },
@@ -133,64 +168,109 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
                     onPageChanged: (focusedDay) {
                       _focusedDay = focusedDay;
                     },
+                    // 기분 이모티콘 표시
+                    calendarBuilders: CalendarBuilders(
+                      markerBuilder: (context, day, events) {
+                        if (events.isNotEmpty) {
+                          final diary = events.first as DiaryEntry;
+                          return Positioned(
+                            bottom: 1,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              padding: EdgeInsets.all(2),
+                              child: Text(
+                                diary.mood,
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          );
+                        }
+                        return null;
+                      },
+                    ),
                     // 스타일링
                     calendarStyle: CalendarStyle(
                       outsideDaysVisible: false,
-                      weekendTextStyle: GoogleFonts.notoSerif(
-                        color: Colors.red[400],
+                      weekendTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 16,
+                        color: Colors.red[400]!,
                       ),
-                      holidayTextStyle: GoogleFonts.notoSerif(
-                        color: Colors.red[400],
+                      holidayTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 16,
+                        color: Colors.red[400]!,
                       ),
-                      defaultTextStyle: GoogleFonts.notoSerif(),
+                      defaultTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 16,
+                        color: Colors.black87,
+                      ),
+                      selectedTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
+                      todayTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 16,
+                        color: Colors.white,
+                      ),
                       selectedDecoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
+                        color: AppThemes.getPrimaryColor(_currentTheme),
                         shape: BoxShape.circle,
                       ),
                       todayDecoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.6),
+                        color: AppThemes.getPrimaryColor(_currentTheme).withOpacity(0.6),
                         shape: BoxShape.circle,
                       ),
                       markerDecoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.8),
+                        color: AppThemes.getPrimaryColor(_currentTheme).withOpacity(0.8),
                         shape: BoxShape.circle,
                       ),
                       markersMaxCount: 1,
+                      markerSize: 6,
                     ),
                     headerStyle: HeaderStyle(
                       formatButtonVisible: true,
                       titleCentered: true,
                       formatButtonShowsNext: false,
                       formatButtonDecoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
+                        color: AppThemes.getPrimaryColor(_currentTheme),
                         borderRadius: BorderRadius.circular(12.0),
                       ),
-                      formatButtonTextStyle: GoogleFonts.notoSerif(
-                        color: Colors.white,
+                      formatButtonTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
                         fontSize: 12,
+                        color: Colors.white,
                       ),
-                      titleTextStyle: GoogleFonts.notoSerif(
+                      titleTextStyle: FontThemes.getTextStyle(
+                        _currentFont,
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                        color: AppThemes.getPrimaryColor(_currentTheme),
                       ),
                       leftChevronIcon: Icon(
                         Icons.chevron_left,
-                        color: Theme.of(context).primaryColor,
+                        color: AppThemes.getPrimaryColor(_currentTheme),
                       ),
                       rightChevronIcon: Icon(
                         Icons.chevron_right,
-                        color: Theme.of(context).primaryColor,
+                        color: AppThemes.getPrimaryColor(_currentTheme),
                       ),
                     ),
                     daysOfWeekStyle: DaysOfWeekStyle(
-                      weekdayStyle: GoogleFonts.notoSerif(
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.bold,
+                      weekdayStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 14,
+                        color: Colors.grey[600]!,
                       ),
-                      weekendStyle: GoogleFonts.notoSerif(
-                        color: Colors.red[400],
-                        fontWeight: FontWeight.bold,
+                      weekendStyle: FontThemes.getTextStyle(
+                        _currentFont,
+                        fontSize: 14,
+                        color: Colors.red[400]!,
                       ),
                     ),
                   ),
@@ -210,9 +290,10 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
       return Center(
         child: Text(
           '날짜를 선택해주세요',
-          style: GoogleFonts.notoSerif(
+          style: FontThemes.getTextStyle(
+            _currentFont,
             fontSize: 16,
-            color: Colors.grey[600],
+            color: Colors.grey[600]!,
           ),
         ),
       );
@@ -246,10 +327,10 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
             children: [
               Text(
                 formattedDate,
-                style: GoogleFonts.notoSerif(
+                style: FontThemes.getTextStyle(
+                  _currentFont,
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
+                  color: AppThemes.getPrimaryColor(_currentTheme),
                 ),
               ),
               if (diary != null)
@@ -286,23 +367,55 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 일기 내용
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-                         child: Text(
-               diary.content,
-               style: GoogleFonts.caveat( // 손글씨 스타일 폰트로 변경
-                 fontSize: 18,
-                 color: Theme.of(context).primaryColor,
-                 height: 1.8,
-               ),
-             ),
+          // 사진과 일기 내용을 함께 표시
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 사진 썸네일
+              if (diary.imageBytes != null) ...[
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey[300]!),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        offset: Offset(2, 2),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _buildThumbnailImage(diary.imageBytes!),
+                  ),
+                ),
+                SizedBox(width: 15),
+              ],
+              
+              // 일기 내용
+              Expanded(
+                child: Container(
+                  padding: EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Text(
+                    diary.content,
+                    style: FontThemes.getTextStyle(
+                      _currentFont,
+                      fontSize: 16,
+                      color: AppThemes.getPrimaryColor(_currentTheme),
+                      height: 1.8,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           
           SizedBox(height: 20),
@@ -386,18 +499,19 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
           SizedBox(height: 20),
           Text(
             '이 날의 일기가 없어요',
-            style: GoogleFonts.notoSerif(
+            style: FontThemes.getTextStyle(
+              _currentFont,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[600],
+              color: Colors.grey[600]!,
             ),
           ),
           SizedBox(height: 10),
           Text(
             '새로운 일기를 작성해보세요!',
-            style: GoogleFonts.notoSerif(
+            style: FontThemes.getTextStyle(
+              _currentFont,
               fontSize: 14,
-              color: Colors.grey[500],
+              color: Colors.grey[500]!,
             ),
           ),
           SizedBox(height: 30),
@@ -422,5 +536,40 @@ class _DiaryCalendarScreenState extends State<DiaryCalendarScreen> {
 
   void _shareDiary(DiaryEntry diary) {
     ShareService.showShareOptions(context, diary);
+  }
+
+  Widget _buildThumbnailImage(String imageBytes) {
+    try {
+      Uint8List bytes = base64Decode(imageBytes);
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        width: 80,
+        height: 80,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 80,
+            height: 80,
+            color: Colors.grey[200],
+            child: Icon(
+              Icons.broken_image,
+              color: Colors.grey[400],
+              size: 24,
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      return Container(
+        width: 80,
+        height: 80,
+        color: Colors.grey[200],
+        child: Icon(
+          Icons.broken_image,
+          color: Colors.grey[400],
+          size: 24,
+        ),
+      );
+    }
   }
 } 
