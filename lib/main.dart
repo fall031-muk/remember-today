@@ -259,41 +259,24 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
     });
 
     try {
-      Uint8List? filteredBytes;
+      // 로딩 표시를 위한 최소 대기 시간과 필터 처리를 병렬로 실행
+      final filterFuture = FilterInfo.applyFilter(filterType, _selectedImageBytes!);
+      final minWaitFuture = Future.delayed(Duration(milliseconds: 1500)); // 1.5초 최소 로딩 시간
+      
+      // 둘 다 완료될 때까지 대기
+      final results = await Future.wait([filterFuture, minWaitFuture]);
+      final Uint8List filteredBytes = results[0] as Uint8List;
 
-      switch (filterType) {
-        case ImageFilterType.watercolor:
-          filteredBytes = await ImageFilterService.applyWatercolorEffect(_selectedImageBytes!);
-          break;
-        case ImageFilterType.cartoon:
-          filteredBytes = await ImageFilterService.applyCartoonEffect(_selectedImageBytes!);
-          break;
-        case ImageFilterType.sketch:
-          filteredBytes = await ImageFilterService.applySketchEffect(_selectedImageBytes!);
-          break;
-        case ImageFilterType.vintage:
-          filteredBytes = await ImageFilterService.applyVintageEffect(_selectedImageBytes!);
-          break;
-        case ImageFilterType.oilPainting:
-          filteredBytes = await ImageFilterService.applyOilPaintingEffect(_selectedImageBytes!);
-          break;
-        case ImageFilterType.popArt:
-          filteredBytes = await ImageFilterService.applyPopArtEffect(_selectedImageBytes!);
-          break;
-      }
+      setState(() {
+        _filteredImageBytes = filteredBytes;
+      });
 
-      if (filteredBytes != null) {
-        setState(() {
-          _filteredImageBytes = filteredBytes;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${FilterInfo.allFilters.firstWhere((f) => f.type == filterType).name} 필터가 적용되었습니다! ✨'),
-            backgroundColor: Theme.of(context).primaryColor,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${FilterInfo.allFilters.firstWhere((f) => f.type == filterType).name} 필터가 적용되었습니다! ✨'),
+          backgroundColor: Theme.of(context).primaryColor,
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -552,12 +535,19 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // 90년대 스타일 헤더
-                  _buildRetroHeader(),
+                  // 🌈 홀로그램 헤더 - 90년대 다이어리 표지
+                  _buildHologramHeader(),
+                  
+                  // 🎨 도화지 영역 - 그림과 사진
+                  _buildArtSection(),
+                  
+                  // 📝 줄노트 영역 - 글쓰기만
+                  _buildNotebookSection(),
+                  
                   SizedBox(height: 20),
                   
-                  // 일기장 페이지
-                  _buildDiaryPage(),
+                  // 액션 버튼들
+                  _buildRetroActionButtons(),
                 ],
               ),
             ),
@@ -567,367 +557,430 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
     );
   }
 
-  Widget _buildRetroHeader() {
-    String selectedDateStr = DateFormat('yyyy년 MM월 dd일 EEEE', 'ko_KR').format(_selectedDate);
-    bool isToday = DateFormat('yyyy-MM-dd').format(_selectedDate) == DateFormat('yyyy-MM-dd').format(DateTime.now());
-    
-    return Stack(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(20),
-          margin: EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppThemes.getPrimaryColor(widget.currentTheme),
-                AppThemes.getAccentColor(widget.currentTheme),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                offset: Offset(0, 6),
-                blurRadius: 12,
-                spreadRadius: 2,
-              ),
-            ],
+  Widget _buildHologramHeader() {
+    return Container(
+      width: double.infinity,
+      height: 120,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFFF6B9D), // 핑크
+            Color(0xFFC44CE6), // 보라
+            Color(0xFF4ECDC4), // 청록
+            Color(0xFF45B7D1), // 파랑
+            Color(0xFF96CEB4), // 연두
+            Color(0xFFFECA57), // 노랑
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          stops: [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            offset: Offset(0, 4),
+            blurRadius: 12,
+            spreadRadius: 2,
           ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '📖 내 일기장',
-                        style: GoogleFonts.permanentMarker(
-                          fontSize: 24,
-                          color: Colors.white,
+          // 홀로그램 효과를 위한 추가 그림자
+          BoxShadow(
+            color: Color(0xFFFF6B9D).withOpacity(0.3),
+            offset: Offset(-2, -2),
+            blurRadius: 8,
+          ),
+          BoxShadow(
+            color: Color(0xFF4ECDC4).withOpacity(0.3),
+            offset: Offset(2, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          // 홀로그램 패턴 효과
+          Positioned.fill(
+            child: CustomPaint(
+              painter: HologramPatternPainter(),
+            ),
+          ),
+          
+          // 메인 콘텐츠
+          Padding(
+            padding: EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 다이어리 제목
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: Text(
+                        '💖 나만의 비밀일기 💖',
+                        style: FontThemes.getTextStyle(
+                          widget.currentFont,
+                          fontSize: 16,
+                          color: Color(0xFFFF1493),
+                        ).copyWith(
                           fontWeight: FontWeight.bold,
                           shadows: [
                             Shadow(
-                              color: Colors.black.withOpacity(0.5),
-                              offset: Offset(2, 2),
-                              blurRadius: 4,
+                              color: Colors.black.withOpacity(0.1),
+                              offset: Offset(1, 1),
+                              blurRadius: 1,
                             ),
                           ],
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
-                        selectedDateStr,
-                        style: GoogleFonts.notoSerif(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w500,
+                    ),
+                    Spacer(),
+                    // 자물쇠 아이콘
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text('🔒', style: TextStyle(fontSize: 20)),
+                    ),
+                  ],
+                ),
+                
+                SizedBox(height: 15),
+                
+                // 날짜와 기분/날씨 스티커들
+                Row(
+                  children: [
+                    // 날짜 스티커
+                    Transform.rotate(
+                      angle: -0.02,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.yellow.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              offset: Offset(1, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          DateFormat('MM/dd (E)', 'ko_KR').format(_selectedDate),
+                          style: FontThemes.getTextStyle(
+                            widget.currentFont,
+                            fontSize: 12,
+                            color: Color(0xFF2E7D32),
+                          ).copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
-                    ],
-                  ),
-                  if (!isToday)
-                    RetroButton(
-                      text: '오늘로',
-                      color: Colors.white.withOpacity(0.2),
-                      onPressed: () {
-                        setState(() {
-                          _selectedDate = DateTime.now();
-                          _currentDiaryId = null;
-                          _selectedMood = '😊';
-                          _selectedWeather = '☀️';
-                          _textController.clear();
-                          _selectedImage = null;
-                          _selectedImageBytes = null;
-                          _filteredImageBytes = null;
-                          _selectedFilter = null;
-                        });
-                      },
                     ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        // 테마별 장식 스티커들
-        ...(_getThemeStickers()),
-      ],
-    );
-  }
-
-  List<Widget> _getThemeStickers() {
-    switch (widget.currentTheme) {
-      case AppThemeType.schoolDiary:
-        return [
-          Positioned(
-            top: 5,
-            right: 20,
-            child: RetroSticker(
-              emoji: '✏️',
-              text: '',
-              backgroundColor: Colors.orange,
-              rotation: 0.2,
+                    
+                    SizedBox(width: 10),
+                    
+                    // 기분 스티커
+                    Transform.rotate(
+                      angle: 0.01,
+                      child: GestureDetector(
+                        onTap: () => _showMoodSelector(),
+                        child: Container(
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.pink.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Text(_selectedMood, style: TextStyle(fontSize: 20)),
+                        ),
+                      ),
+                    ),
+                    
+                    SizedBox(width: 8),
+                    
+                    // 날씨 스티커
+                    Transform.rotate(
+                      angle: -0.01,
+                      child: GestureDetector(
+                        onTap: () => _showWeatherSelector(),
+                        child: Container(
+                          padding: EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.9),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: Text(_selectedWeather, style: TextStyle(fontSize: 20)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ];
-      case AppThemeType.candyShop:
-        return [
-          Positioned(
-            top: 10,
-            right: 15,
-            child: RetroSticker(
-              emoji: '💖',
-              text: '',
-              backgroundColor: Colors.pink,
-              rotation: -0.3,
-            ),
-          ),
-          Positioned(
-            bottom: 10,
-            left: 15,
-            child: RetroSticker(
-              emoji: '🍭',
-              text: '',
-              backgroundColor: Colors.red,
-              rotation: 0.4,
-            ),
-          ),
-        ];
-      case AppThemeType.summerVacation:
-        return [
-          Positioned(
-            top: 8,
-            right: 18,
-            child: RetroSticker(
-              emoji: '🌊',
-              text: '',
-              backgroundColor: Colors.blue,
-              rotation: 0.1,
-            ),
-          ),
-        ];
-      case AppThemeType.autumnLeaf:
-        return [
-          Positioned(
-            top: 12,
-            right: 25,
-            child: RetroSticker(
-              emoji: '🍂',
-              text: '',
-              backgroundColor: Colors.orange,
-              rotation: -0.2,
-            ),
-          ),
-        ];
-      case AppThemeType.winterStory:
-        return [
-          Positioned(
-            top: 15,
-            right: 20,
-            child: RetroSticker(
-              emoji: '❄️',
-              text: '',
-              backgroundColor: Colors.blue,
-              rotation: 0.3,
-            ),
-          ),
-        ];
-      default:
-        return [];
-    }
-  }
-
-  Widget _buildDiaryPage() {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 날짜와 기분/날씨 선택
-          _buildDiaryHeader(),
-          SizedBox(height: 40),
-          
-          // 사진 섹션
-          _buildPhotoSection(),
-          SizedBox(height: 40),
-          
-          // 일기 내용
-          _buildDiaryContent(),
-          SizedBox(height: 40),
-          
-          // 액션 버튼들
-          _buildRetroActionButtons(),
         ],
       ),
     );
   }
 
-  Widget _buildDiaryHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 손으로 쓴 듯한 날짜
-        Transform.rotate(
-          angle: -0.02, // 살짝 기울어진 효과
-          child: Text(
-            DateFormat('yyyy년 MM월 dd일').format(_selectedDate),
-            style: FontThemes.getTextStyle(
-              widget.currentFont,
-              fontSize: 18,
-              color: AppThemes.getPrimaryColor(widget.currentTheme),
-              height: 1.0,
-            ).copyWith(
-              decoration: TextDecoration.underline,
-              decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.5),
-            ),
+  Widget _buildArtSection() {
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Color(0xFFFFFFF8), // 도화지 색
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.grey[200]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            offset: Offset(0, 2),
+            blurRadius: 8,
           ),
-        ),
-        
-        SizedBox(height: 20),
-        
-        // 기분과 날씨 선택 (스티커 스타일)
-        Row(
-          children: [
-            Text(
-              '오늘 기분: ',
-              style: FontThemes.getTextStyle(
-                widget.currentFont,
-                fontSize: 14,
-                color: AppThemes.getPrimaryColor(widget.currentTheme),
-              ),
-            ),
-            SizedBox(width: 10),
-            Wrap(
-              spacing: 8,
-              children: _moods.map((mood) {
-                final isSelected = _selectedMood == mood;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedMood = mood),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isSelected 
-                        ? AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.3)
-                        : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border: isSelected 
-                        ? Border.all(color: AppThemes.getPrimaryColor(widget.currentTheme), width: 2)
-                        : null,
-                    ),
-                    child: Center(
-                      child: Text(mood, style: TextStyle(fontSize: 24)),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-        
-        SizedBox(height: 15),
-        
-        Row(
-          children: [
-            Text(
-              '오늘 날씨: ',
-              style: FontThemes.getTextStyle(
-                widget.currentFont,
-                fontSize: 14,
-                color: AppThemes.getPrimaryColor(widget.currentTheme),
-              ),
-            ),
-            SizedBox(width: 10),
-            Wrap(
-              spacing: 8,
-              children: _weathers.map((weather) {
-                final isSelected = _selectedWeather == weather;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedWeather = weather),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isSelected 
-                        ? AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.3)
-                        : Colors.transparent,
-                      borderRadius: BorderRadius.circular(20),
-                      border: isSelected 
-                        ? Border.all(color: AppThemes.getPrimaryColor(widget.currentTheme), width: 2)
-                        : null,
-                    ),
-                    child: Center(
-                      child: Text(weather, style: TextStyle(fontSize: 24)),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-             ],
-     );
-   }
-
-  Widget _buildDiaryContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 일기 제목 (손글씨 스타일)
-        Transform.rotate(
-          angle: -0.01,
-          child: Text(
-            '오늘의 이야기',
-            style: FontThemes.getTextStyle(
-              widget.currentFont,
-              fontSize: 16,
-              color: AppThemes.getPrimaryColor(widget.currentTheme),
-            ).copyWith(
-              decoration: TextDecoration.underline,
-              decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
-            ),
-          ),
-        ),
-        
-        SizedBox(height: 20),
-        
-        // 텍스트 입력 영역 (줄노트 스타일)
-        PaperTexture(
-          themeType: widget.currentTheme,
-          child: Container(
-            width: double.infinity,
-            constraints: BoxConstraints(minHeight: 200),
-            padding: EdgeInsets.fromLTRB(80, 30, 30, 30), // 왼쪽에 마진선 공간
-            child: TextField(
-              controller: _textController,
-              maxLines: null,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 도화지 제목
+          Transform.rotate(
+            angle: -0.01,
+            child: Text(
+              '🎨 오늘의 그림일기',
               style: FontThemes.getTextStyle(
                 widget.currentFont,
                 fontSize: 16,
-                color: AppThemes.getPrimaryColor(widget.currentTheme),
-                height: 1.8, // 줄 간격
-              ),
-              decoration: InputDecoration(
-                hintText: '오늘 하루는 어떠셨나요?\n소중한 추억을 기록해보세요...\n\n\n\n\n',
-                hintStyle: FontThemes.getTextStyle(
-                  widget.currentFont,
-                  fontSize: 14,
-                  color: Colors.grey[400]!,
-                  height: 1.8,
-                ),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
+                color: Color(0xFF2E7D32),
+              ).copyWith(
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
+                decorationColor: Color(0xFF4CAF50).withOpacity(0.5),
               ),
             ),
           ),
+          
+          SizedBox(height: 20),
+          
+          // 크레용 그림들
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              CrayonDrawing(type: 'sun', size: 60),
+              CrayonDrawing(type: 'house', size: 70),
+              CrayonDrawing(type: 'flower', size: 60),
+              if (_selectedImageBytes != null)
+                CrayonDrawing(type: 'family', size: 65),
+            ],
+          ),
+          
+          SizedBox(height: 20),
+          
+          // 폴라로이드 사진
+          Center(child: _buildPolaroidPhoto()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotebookSection() {
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Color(0xFFFFFDF5), // 크림색 종이
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.grey[300]!, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            offset: Offset(0, 2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: CustomPaint(
+        painter: NotebookPainter(
+          lineColor: Color(0xFFE3F2FD),
+          marginColor: Color(0xFFFF9999),
+          paperColor: Colors.transparent,
         ),
-      ],
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(80, 30, 30, 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 일기 제목
+              Transform.rotate(
+                angle: -0.01,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.5), width: 1),
+                  ),
+                  child: Text(
+                    '📝 오늘의 이야기',
+                    style: FontThemes.getTextStyle(
+                      widget.currentFont,
+                      fontSize: 14,
+                      color: Color(0xFF2E7D32),
+                    ).copyWith(
+                      fontWeight: FontWeight.bold,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.orange.withOpacity(0.7),
+                    ),
+                  ),
+                ),
+              ),
+              
+              SizedBox(height: 25),
+              
+              // 텍스트 입력 영역
+              TextField(
+                controller: _textController,
+                maxLines: null,
+                style: FontThemes.getTextStyle(
+                  widget.currentFont,
+                  fontSize: 16,
+                  color: Color(0xFF1565C0),
+                  height: 1.8,
+                ).copyWith(
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.1),
+                      offset: Offset(0.5, 0.5),
+                      blurRadius: 0.5,
+                    ),
+                  ],
+                ),
+                decoration: InputDecoration(
+                  hintText: '오늘 있었던 일을 써보세요...\n\n친구들과 놀았던 이야기나\n맛있게 먹은 음식 이야기도 좋아요! 😊\n\n\n\n',
+                  hintStyle: FontThemes.getTextStyle(
+                    widget.currentFont,
+                    fontSize: 14,
+                    color: Colors.grey[500]!,
+                    height: 1.8,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              
+              SizedBox(height: 20),
+              
+              // 필터 섹션
+              if (_selectedImageBytes != null) _buildRetroFilterSection(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMoodSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Color(0xFFFFFDF5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '😊 오늘 기분은?',
+          style: FontThemes.getTextStyle(
+            widget.currentFont,
+            fontSize: 18,
+            color: Color(0xFF2E7D32),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: Container(
+          width: double.maxFinite,
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _moods.map((mood) => GestureDetector(
+              onTap: () {
+                setState(() => _selectedMood = mood);
+                Navigator.pop(context);
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: _selectedMood == mood 
+                    ? Colors.pink.withOpacity(0.3) 
+                    : Colors.transparent,
+                  borderRadius: BorderRadius.circular(25),
+                  border: _selectedMood == mood 
+                    ? Border.all(color: Colors.pink, width: 2)
+                    : Border.all(color: Colors.grey[300]!, width: 1),
+                ),
+                child: Center(
+                  child: Text(mood, style: TextStyle(fontSize: 24)),
+                ),
+              ),
+            )).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showWeatherSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Color(0xFFFFFDF5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          '🌤️ 오늘 날씨는?',
+          style: FontThemes.getTextStyle(
+            widget.currentFont,
+            fontSize: 18,
+            color: Color(0xFF2E7D32),
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: Container(
+          width: double.maxFinite,
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _weathers.map((weather) => GestureDetector(
+              onTap: () {
+                setState(() => _selectedWeather = weather);
+                Navigator.pop(context);
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: _selectedWeather == weather 
+                    ? Colors.blue.withOpacity(0.3) 
+                    : Colors.transparent,
+                  borderRadius: BorderRadius.circular(25),
+                  border: _selectedWeather == weather 
+                    ? Border.all(color: Colors.blue, width: 2)
+                    : Border.all(color: Colors.grey[300]!, width: 1),
+                ),
+                child: Center(
+                  child: Text(weather, style: TextStyle(fontSize: 24)),
+                ),
+              ),
+            )).toList(),
+          ),
+        ),
+      ),
     );
   }
 
@@ -941,8 +994,7 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
             children: [
               Expanded(
                 child: RetroButton(
-                  text: _currentDiaryId != null ? '수정하기' : '저장하기',
-                  icon: _currentDiaryId != null ? Icons.edit : Icons.save,
+                  text: _currentDiaryId != null ? '✏️ 수정하기' : '💾 저장하기',
                   color: AppThemes.getPrimaryColor(widget.currentTheme),
                   onPressed: _isLoading ? () {} : _saveDiary,
                 ),
@@ -950,8 +1002,7 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
               SizedBox(width: 15),
               Expanded(
                 child: RetroButton(
-                  text: '일기 목록',
-                  icon: Icons.list,
+                  text: '📝 일기 목록',
                   color: AppThemes.getAccentColor(widget.currentTheme),
                   onPressed: () {
                     Navigator.push(
@@ -1054,371 +1105,6 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
     );
   }
 
-  Widget _buildHeader() {
-    String selectedDateStr = DateFormat('yyyy년 MM월 dd일 EEEE', 'ko_KR').format(_selectedDate);
-    bool isToday = DateFormat('yyyy-MM-dd').format(_selectedDate) == DateFormat('yyyy-MM-dd').format(DateTime.now());
-    
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).primaryColor,
-            AppThemes.getAccentColor(widget.currentTheme),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.3),
-            spreadRadius: 2,
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Remember Today',
-                style: GoogleFonts.permanentMarker(
-                  fontSize: 24,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (!isToday)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedDate = DateTime.now();
-                      _currentDiaryId = null;
-                      _selectedMood = '😊';
-                      _selectedWeather = '☀️';
-                      _textController.clear();
-                      _selectedImage = null;
-                      _selectedImageBytes = null;
-                    });
-                  },
-                  child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      '오늘로',
-                      style: GoogleFonts.notoSerif(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Text(
-            selectedDateStr,
-            style: GoogleFonts.notoSerif(
-              fontSize: 16,
-              color: Colors.white70,
-            ),
-          ),
-          if (!isToday) ...[
-            SizedBox(height: 4),
-            Text(
-              _currentDiaryId != null ? '수정 중' : '새 일기 작성',
-              style: GoogleFonts.notoSerif(
-                fontSize: 12,
-                color: Colors.white60,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMoodWeatherSelector() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '오늘의 기분',
-            style: GoogleFonts.notoSerif(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-          SizedBox(height: 15),
-          Container(
-            height: 60,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _moods.length,
-              itemBuilder: (context, index) {
-                bool isSelected = _selectedMood == _moods[index];
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedMood = _moods[index];
-                    });
-                  },
-                  child: Container(
-                    margin: EdgeInsets.only(right: 10),
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _moods[index],
-                        style: TextStyle(fontSize: 24),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          SizedBox(height: 20),
-          Text(
-            '오늘의 날씨',
-            style: GoogleFonts.notoSerif(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).primaryColor,
-            ),
-          ),
-          SizedBox(height: 15),
-          Container(
-            height: 60,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _weathers.length,
-              itemBuilder: (context, index) {
-                bool isSelected = _selectedWeather == _weathers[index];
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _selectedWeather = _weathers[index];
-                    });
-                  },
-                  child: Container(
-                    margin: EdgeInsets.only(right: 10),
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: isSelected ? Theme.of(context).primaryColor : Colors.grey[200],
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(
-                        color: isSelected ? Theme.of(context).primaryColor : Colors.grey[300]!,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        _weathers[index],
-                        style: TextStyle(fontSize: 24),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotoSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 사진 제목 (손글씨 스타일)
-        Transform.rotate(
-          angle: 0.01,
-          child: Text(
-            '오늘의 사진',
-            style: FontThemes.getTextStyle(
-              widget.currentFont,
-              fontSize: 16,
-              color: AppThemes.getPrimaryColor(widget.currentTheme),
-            ).copyWith(
-              decoration: TextDecoration.underline,
-              decorationColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
-            ),
-          ),
-        ),
-        
-        SizedBox(height: 15),
-        
-        // 사진 영역 (폴라로이드 스타일)
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!, width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                offset: Offset(2, 2),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(15),
-            child: Column(
-              children: [
-                // 폴라로이드 사진 영역
-                Container(
-                  width: double.infinity,
-                  constraints: BoxConstraints(
-                    minHeight: 180,
-                    maxHeight: 300,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: (_selectedImage != null && _selectedImageBytes != null)
-                      ? Stack(
-                          children: [
-                            GestureDetector(
-                              onTap: () => _showFullScreenImage(context),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Image.memory(
-                                  _filteredImageBytes ?? _selectedImageBytes!,
-                                  width: double.infinity,
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                            // 레트로 스타일 편집 버튼
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: RetroSticker(
-                                emoji: '✏️',
-                                text: '',
-                                backgroundColor: AppThemes.getAccentColor(widget.currentTheme),
-                                rotation: 0.1,
-                              ),
-                            ),
-                          ],
-                        )
-                      : GestureDetector(
-                          onTap: _pickImage,
-                          child: Container(
-                            width: double.infinity,
-                            height: 180,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.grey[300]!,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.add_a_photo,
-                                  size: 40,
-                                  color: Colors.grey[400],
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  '📷 사진 추가하기',
-                                  style: FontThemes.getTextStyle(
-                                    widget.currentFont,
-                                    fontSize: 14,
-                                    color: Colors.grey[500]!,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  '(그림 필터로 변환 가능)',
-                                  style: FontThemes.getTextStyle(
-                                    widget.currentFont,
-                                    fontSize: 10,
-                                    color: Colors.grey[400]!,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                ),
-                
-                // 폴라로이드 하단 메모 공간
-                if (_selectedImage != null && _selectedImageBytes != null) ...[
-                  SizedBox(height: 10),
-                  Container(
-                    width: double.infinity,
-                    height: 40,
-                    child: Center(
-                      child: Transform.rotate(
-                        angle: -0.02,
-                        child: Text(
-                          _selectedFilter != null 
-                            ? '${FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).name} 필터 적용됨'
-                            : '오늘의 추억 📸',
-                          style: FontThemes.getTextStyle(
-                            widget.currentFont,
-                            fontSize: 12,
-                            color: Colors.grey[600]!,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-        
-        // 필터 섹션
-        if (_selectedImage != null) ...[
-          SizedBox(height: 15),
-          _buildRetroFilterSection(),
-        ],
-      ],
-    );
-  }
-
   Widget _buildRetroFilterSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1457,52 +1143,136 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
         
         if (_isProcessingFilter)
           Container(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(25),
             decoration: BoxDecoration(
-              color: AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
+              gradient: LinearGradient(
+                colors: [
+                  AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.15),
+                  AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
+                color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.4),
                 width: 2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.2),
+                  offset: Offset(0, 4),
+                  blurRadius: 8,
+                ),
+              ],
             ),
             child: Column(
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 60,
-                      height: 60,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 4,
+                // 애니메이션 아이콘과 진행률
+                TweenAnimationBuilder(
+                  duration: Duration(milliseconds: 800),
+                  tween: Tween<double>(begin: 0.8, end: 1.2),
+                  builder: (context, scale, child) {
+                    return Transform.scale(
+                      scale: scale,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(40),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 70,
+                            height: 70,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 6,
+                              color: AppThemes.getPrimaryColor(widget.currentTheme),
+                              backgroundColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.2),
+                              strokeCap: StrokeCap.round,
+                            ),
+                          ),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: AppThemes.getPrimaryColor(widget.currentTheme),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.3),
+                                  offset: Offset(0, 2),
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              Icons.palette,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  onEnd: () {
+                    // 애니메이션이 끝나면 다시 시작 (무한 반복)
+                    if (_isProcessingFilter) {
+                      setState(() {});
+                    }
+                  },
+                ),
+                SizedBox(height: 20),
+                
+                // 현재 적용 중인 필터 표시
+                if (_selectedFilter != null) ...[
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Text(
+                      '${FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).emoji} ${FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).name}',
+                      style: FontThemes.getTextStyle(
+                        widget.currentFont,
+                        fontSize: 12,
                         color: AppThemes.getPrimaryColor(widget.currentTheme),
-                        backgroundColor: AppThemes.getPrimaryColor(widget.currentTheme).withOpacity(0.2),
                       ),
                     ),
-                    Icon(
-                      Icons.auto_fix_high,
-                      color: AppThemes.getPrimaryColor(widget.currentTheme),
-                      size: 24,
-                    ),
-                  ],
-                ),
-                SizedBox(height: 15),
+                  ),
+                  SizedBox(height: 10),
+                ],
+                
                 Text(
-                  '🎨 그림으로 변환 중...',
+                  '🎨 마법을 부리는 중...',
                   style: FontThemes.getTextStyle(
                     widget.currentFont,
-                    fontSize: 14,
+                    fontSize: 16,
                     color: AppThemes.getPrimaryColor(widget.currentTheme),
                   ),
                 ),
-                SizedBox(height: 5),
+                SizedBox(height: 8),
                 Text(
-                  '잠시만 기다려주세요 ✨',
+                  '90년대 감성으로 변신시키고 있어요! ✨',
                   style: FontThemes.getTextStyle(
                     widget.currentFont,
                     fontSize: 12,
                     color: Colors.grey[600]!,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  '조금만 더 기다려주세요~ 🌈',
+                  style: FontThemes.getTextStyle(
+                    widget.currentFont,
+                    fontSize: 10,
+                    color: Colors.grey[500]!,
                   ),
                 ),
               ],
@@ -1515,19 +1285,145 @@ class _DiaryHomePageState extends State<DiaryHomePage> {
             children: FilterInfo.allFilters.map((filter) {
               final isSelected = _selectedFilter == filter.type;
               return GestureDetector(
-                onTap: () => _applyImageFilter(filter.type),
-                child: RetroSticker(
-                  emoji: filter.emoji,
-                  text: filter.name,
-                  backgroundColor: isSelected 
-                    ? AppThemes.getPrimaryColor(widget.currentTheme)
-                    : AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.7),
-                  rotation: (FilterInfo.allFilters.indexOf(filter) % 3 - 1) * 0.1,
+                onTap: _isProcessingFilter ? null : () => _applyImageFilter(filter.type),
+                child: Opacity(
+                  opacity: _isProcessingFilter ? 0.5 : 1.0,
+                  child: RetroSticker(
+                    emoji: filter.emoji,
+                    text: filter.name,
+                    backgroundColor: isSelected 
+                      ? AppThemes.getPrimaryColor(widget.currentTheme)
+                      : AppThemes.getAccentColor(widget.currentTheme).withOpacity(0.7),
+                    rotation: (FilterInfo.allFilters.indexOf(filter) % 3 - 1) * 0.1,
+                  ),
                 ),
               );
             }).toList(),
           ),
       ],
+    );
+  }
+
+  Widget _buildPolaroidPhoto() {
+    if (_selectedImageBytes == null) {
+      return GestureDetector(
+        onTap: _pickImage,
+        child: Transform.rotate(
+          angle: -0.02,
+          child: Container(
+            width: 200,
+            height: 180,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!, width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  offset: Offset(2, 2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  height: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_a_photo, size: 40, color: Colors.grey[400]),
+                        SizedBox(height: 8),
+                        Text(
+                          '사진 추가',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  height: 40,
+                  padding: EdgeInsets.all(8),
+                  child: Center(
+                    child: Text(
+                      '오늘의 추억 📸',
+                      style: FontThemes.getTextStyle(
+                        widget.currentFont,
+                        fontSize: 10,
+                        color: Colors.grey[600]!,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Transform.rotate(
+      angle: 0.01,
+      child: Container(
+        width: 200,
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              offset: Offset(3, 3),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 140,
+              padding: EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: GestureDetector(
+                  onTap: () => _showFullScreenImage(context),
+                  child: Image.memory(
+                    _filteredImageBytes ?? _selectedImageBytes!,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              height: 40,
+              padding: EdgeInsets.all(8),
+              child: Center(
+                child: Text(
+                  _selectedFilter != null 
+                    ? '${FilterInfo.allFilters.firstWhere((f) => f.type == _selectedFilter).name} 필터'
+                    : '오늘의 추억 📸',
+                  style: FontThemes.getTextStyle(
+                    widget.currentFont,
+                    fontSize: 10,
+                    color: Colors.grey[700]!,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

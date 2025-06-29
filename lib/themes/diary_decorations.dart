@@ -2,225 +2,159 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'app_themes.dart';
 
-// 줄노트 배경을 그리는 CustomPainter
+/// 90년대 진짜 공책 스타일의 배경 페인터
 class NotebookPainter extends CustomPainter {
-  final AppThemeType themeType;
   final Color lineColor;
   final Color marginColor;
-  final double lineSpacing;
-
+  final Color paperColor;
+  final Color holeColor;
+  
   NotebookPainter({
-    required this.themeType,
-    required this.lineColor,
-    required this.marginColor,
-    this.lineSpacing = 30.0,
+    this.lineColor = const Color(0xFFE0E0E0),
+    this.marginColor = const Color(0xFFFF9999),
+    this.paperColor = const Color(0xFFFFFDF5), // 약간 크림색 종이
+    this.holeColor = const Color(0xFFE0E0E0),
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 종이 질감 배경
-    final backgroundPaint = Paint()
-      ..color = AppThemes.getBackgroundColor(themeType)
+    // 1. 종이 배경 (크림색)
+    final paperPaint = Paint()
+      ..color = paperColor
       ..style = PaintingStyle.fill;
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paperPaint);
     
-    canvas.drawRect(Offset.zero & size, backgroundPaint);
-
-    // 왼쪽 마진선 (바인더 구멍 부분)
+    // 2. 종이 질감 효과 (미세한 점들)
+    _drawPaperTexture(canvas, size);
+    
+    // 3. 왼쪽 마진선 (빨간색)
     final marginPaint = Paint()
       ..color = marginColor
-      ..strokeWidth = 2.0
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
-    
     canvas.drawLine(
       Offset(60, 0),
       Offset(60, size.height),
       marginPaint,
     );
-
-    // 바인더 구멍들
-    final holePaint = Paint()
-      ..color = marginColor.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-
-    for (double y = 40; y < size.height - 40; y += 80) {
-      canvas.drawCircle(Offset(30, y), 8, holePaint);
-    }
-
-    // 가로줄들
+    
+    // 4. 가로줄들 (연한 파란색)
     final linePaint = Paint()
       ..color = lineColor
-      ..strokeWidth = 1.0
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke;
-
+    
+    double lineSpacing = 24.0; // 줄 간격
     for (double y = lineSpacing; y < size.height; y += lineSpacing) {
       canvas.drawLine(
-        Offset(70, y),
-        Offset(size.width - 20, y),
+        Offset(0, y),
+        Offset(size.width, y),
         linePaint,
       );
     }
-
-    // 테마별 장식 추가
-    _drawThemeDecorations(canvas, size);
+    
+    // 5. 바인더 구멍들
+    _drawBinderHoles(canvas, size);
+    
+    // 6. 종이 가장자리 그림자
+    _drawPaperShadow(canvas, size);
   }
-
-  void _drawThemeDecorations(Canvas canvas, Size size) {
-    switch (themeType) {
-      case AppThemeType.schoolDiary:
-        _drawSchoolDecorations(canvas, size);
-        break;
-      case AppThemeType.candyShop:
-        _drawCandyDecorations(canvas, size);
-        break;
-      case AppThemeType.summerVacation:
-        _drawSummerDecorations(canvas, size);
-        break;
-      case AppThemeType.autumnLeaf:
-        _drawAutumnDecorations(canvas, size);
-        break;
-      case AppThemeType.winterStory:
-        _drawWinterDecorations(canvas, size);
-        break;
-    }
-  }
-
-  void _drawSchoolDecorations(Canvas canvas, Size size) {
-    // 연필 장식
-    final pencilPaint = Paint()
-      ..color = Colors.orange
+  
+  void _drawPaperTexture(Canvas canvas, Size size) {
+    final texturePaint = Paint()
+      ..color = Color(0xFFF5F5DC).withOpacity(0.3)
       ..style = PaintingStyle.fill;
     
-    // 오른쪽 상단에 작은 연필 그리기
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width - 50, 20, 30, 8),
-        Radius.circular(4),
-      ),
-      pencilPaint,
-    );
-  }
-
-  void _drawCandyDecorations(Canvas canvas, Size size) {
-    // 하트 장식들
-    final heartPaint = Paint()
-      ..color = Colors.pink.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-
-    _drawHeart(canvas, Offset(size.width - 40, 30), 15, heartPaint);
-    _drawHeart(canvas, Offset(size.width - 60, size.height - 50), 12, heartPaint);
-  }
-
-  void _drawSummerDecorations(Canvas canvas, Size size) {
-    // 구름 장식
-    final cloudPaint = Paint()
-      ..color = Colors.white.withOpacity(0.7)
-      ..style = PaintingStyle.fill;
-
-    _drawCloud(canvas, Offset(size.width - 80, 40), cloudPaint);
-  }
-
-  void _drawAutumnDecorations(Canvas canvas, Size size) {
-    // 단풍잎 장식
-    final leafPaint = Paint()
-      ..color = Colors.orange.withOpacity(0.4)
-      ..style = PaintingStyle.fill;
-
-    _drawLeaf(canvas, Offset(size.width - 50, 50), leafPaint);
-    _drawLeaf(canvas, Offset(size.width - 30, size.height - 80), leafPaint);
-  }
-
-  void _drawWinterDecorations(Canvas canvas, Size size) {
-    // 눈송이 장식
-    final snowPaint = Paint()
-      ..color = Colors.white.withOpacity(0.8)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    _drawSnowflake(canvas, Offset(size.width - 40, 40), 15, snowPaint);
-    _drawSnowflake(canvas, Offset(size.width - 60, size.height - 60), 12, snowPaint);
-  }
-
-  void _drawHeart(Canvas canvas, Offset center, double size, Paint paint) {
-    final path = Path();
-    path.moveTo(center.dx, center.dy + size * 0.3);
-    path.cubicTo(center.dx - size * 0.5, center.dy - size * 0.3,
-                 center.dx - size, center.dy + size * 0.1,
-                 center.dx, center.dy + size * 0.7);
-    path.cubicTo(center.dx + size, center.dy + size * 0.1,
-                 center.dx + size * 0.5, center.dy - size * 0.3,
-                 center.dx, center.dy + size * 0.3);
-    canvas.drawPath(path, paint);
-  }
-
-  void _drawCloud(Canvas canvas, Offset center, Paint paint) {
-    canvas.drawCircle(Offset(center.dx - 15, center.dy), 12, paint);
-    canvas.drawCircle(Offset(center.dx, center.dy), 15, paint);
-    canvas.drawCircle(Offset(center.dx + 15, center.dy), 12, paint);
-    canvas.drawCircle(Offset(center.dx + 8, center.dy - 8), 10, paint);
-  }
-
-  void _drawLeaf(Canvas canvas, Offset center, Paint paint) {
-    final path = Path();
-    path.moveTo(center.dx, center.dy - 15);
-    path.quadraticBezierTo(center.dx + 10, center.dy - 5, center.dx, center.dy + 15);
-    path.quadraticBezierTo(center.dx - 10, center.dy - 5, center.dx, center.dy - 15);
-    canvas.drawPath(path, paint);
-  }
-
-  void _drawSnowflake(Canvas canvas, Offset center, double size, Paint paint) {
-    for (int i = 0; i < 6; i++) {
-      final angle = i * math.pi / 3;
-      final x1 = center.dx + math.cos(angle) * size;
-      final y1 = center.dy + math.sin(angle) * size;
-      canvas.drawLine(center, Offset(x1, y1), paint);
+    final random = math.Random(42); // 고정된 시드로 일관된 텍스처
+    
+    for (int i = 0; i < 200; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 0.5 + 0.2;
       
-      // 작은 가지들
-      final x2 = center.dx + math.cos(angle) * size * 0.7;
-      final y2 = center.dy + math.sin(angle) * size * 0.7;
-      final branchAngle1 = angle + math.pi / 6;
-      final branchAngle2 = angle - math.pi / 6;
-      
-      canvas.drawLine(
-        Offset(x2, y2),
-        Offset(x2 + math.cos(branchAngle1) * size * 0.3, y2 + math.sin(branchAngle1) * size * 0.3),
-        paint,
-      );
-      canvas.drawLine(
-        Offset(x2, y2),
-        Offset(x2 + math.cos(branchAngle2) * size * 0.3, y2 + math.sin(branchAngle2) * size * 0.3),
-        paint,
-      );
+      canvas.drawCircle(Offset(x, y), radius, texturePaint);
     }
+  }
+  
+  void _drawBinderHoles(Canvas canvas, Size size) {
+    final holePaint = Paint()
+      ..color = holeColor
+      ..style = PaintingStyle.fill;
+    
+    final holeOutlinePaint = Paint()
+      ..color = Color(0xFFBBBBBB)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+    
+    // 3개의 구멍
+    final holePositions = [
+      size.height * 0.2,
+      size.height * 0.5,
+      size.height * 0.8,
+    ];
+    
+    for (double y in holePositions) {
+      // 구멍 배경
+      canvas.drawCircle(Offset(20, y), 6, holePaint);
+      // 구멍 테두리
+      canvas.drawCircle(Offset(20, y), 6, holeOutlinePaint);
+      // 구멍 안쪽 그림자
+      final shadowPaint = Paint()
+        ..color = Colors.black.withOpacity(0.1)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(20, y), 4, shadowPaint);
+    }
+  }
+  
+  void _drawPaperShadow(Canvas canvas, Size size) {
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.05)
+      ..style = PaintingStyle.fill;
+    
+    // 오른쪽 가장자리 그림자
+    canvas.drawRect(
+      Rect.fromLTWH(size.width - 3, 0, 3, size.height),
+      shadowPaint,
+    );
+    
+    // 아래쪽 가장자리 그림자
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height - 3, size.width, 3),
+      shadowPaint,
+    );
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// 90년대 스타일 스티커 위젯들
+/// 90년대 스타일 스티커 위젯
 class RetroSticker extends StatelessWidget {
   final String emoji;
   final String text;
   final Color backgroundColor;
   final double rotation;
+  final double size;
 
   const RetroSticker({
-    super.key,
+    Key? key,
     required this.emoji,
     required this.text,
     required this.backgroundColor,
-    this.rotation = 0,
-  });
+    this.rotation = 0.0,
+    this.size = 60,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Transform.rotate(
       angle: rotation,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(size / 2),
           border: Border.all(color: Colors.white, width: 2),
           boxShadow: [
             BoxShadow(
@@ -230,19 +164,23 @@ class RetroSticker extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(emoji, style: TextStyle(fontSize: 16)),
+            Text(
+              emoji,
+              style: TextStyle(fontSize: size * 0.3),
+            ),
             if (text.isNotEmpty) ...[
-              SizedBox(width: 4),
+              SizedBox(height: 2),
               Text(
                 text,
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                  fontSize: size * 0.15,
                   color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
             ],
           ],
@@ -252,73 +190,56 @@ class RetroSticker extends StatelessWidget {
   }
 }
 
-// 90년대 스타일 버튼
+/// 90년대 스타일 입체 버튼
 class RetroButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
   final Color color;
-  final IconData? icon;
+  final VoidCallback onPressed;
+  final double width;
+  final double height;
 
   const RetroButton({
-    super.key,
+    Key? key,
     required this.text,
-    required this.onPressed,
     required this.color,
-    this.icon,
-  });
+    required this.onPressed,
+    this.width = 80,
+    this.height = 35,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color,
-            color.withOpacity(0.8),
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            offset: Offset(0, 4),
-            blurRadius: 8,
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.8),
+              color.withOpacity(0.6),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (icon != null) ...[
-                  Icon(icon, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                ],
-                Text(
-                  text,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withOpacity(0.5),
-                        offset: Offset(1, 1),
-                        blurRadius: 2,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              offset: Offset(2, 2),
+              blurRadius: 4,
+            ),
+          ],
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
@@ -327,45 +248,228 @@ class RetroButton extends StatelessWidget {
   }
 }
 
-// 종이 질감 효과를 위한 위젯
+/// 종이 질감 효과 위젯
 class PaperTexture extends StatelessWidget {
   final Widget child;
-  final AppThemeType themeType;
+  final double opacity;
 
   const PaperTexture({
-    super.key,
+    Key? key,
     required this.child,
-    required this.themeType,
-  });
+    this.opacity = 0.1,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppThemes.getBackgroundColor(themeType),
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: Offset(0, 2),
-            blurRadius: 8,
-            spreadRadius: 1,
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: CustomPaint(
+            painter: PaperTexturePainter(opacity: opacity),
           ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: Offset(0, 1),
-            blurRadius: 2,
-          ),
-        ],
-      ),
-      child: CustomPaint(
-        painter: NotebookPainter(
-          themeType: themeType,
-          lineColor: AppThemes.getPrimaryColor(themeType).withOpacity(0.2),
-          marginColor: AppThemes.getPrimaryColor(themeType).withOpacity(0.3),
         ),
-        child: child,
-      ),
+      ],
     );
   }
+}
+
+class PaperTexturePainter extends CustomPainter {
+  final double opacity;
+
+  PaperTexturePainter({required this.opacity});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Color(0xFFF5F5DC).withOpacity(opacity)
+      ..style = PaintingStyle.fill;
+
+    final random = math.Random(42);
+
+    for (int i = 0; i < 100; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      final radius = random.nextDouble() * 0.8 + 0.2;
+
+      canvas.drawCircle(Offset(x, y), radius, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 90년대 크레용 스타일 그림 위젯
+class CrayonDrawing extends StatelessWidget {
+  final String type; // 'family', 'house', 'sun', 'flower' 등
+  final double size;
+
+  const CrayonDrawing({
+    Key? key,
+    required this.type,
+    this.size = 100,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: CrayonPainter(type: type),
+    );
+  }
+}
+
+class CrayonPainter extends CustomPainter {
+  final String type;
+
+  CrayonPainter({required this.type});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    switch (type) {
+      case 'family':
+        _drawFamily(canvas, size);
+        break;
+      case 'house':
+        _drawHouse(canvas, size);
+        break;
+      case 'sun':
+        _drawSun(canvas, size);
+        break;
+      case 'flower':
+        _drawFlower(canvas, size);
+        break;
+    }
+  }
+
+  void _drawFamily(Canvas canvas, Size size) {
+    // 간단한 가족 그림 (막대기 인형 스타일)
+    final paint = Paint()
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // 엄마 (초록색 치마)
+    paint.color = Color(0xFF4CAF50);
+    canvas.drawLine(Offset(size.width * 0.3, size.height * 0.3), 
+                   Offset(size.width * 0.3, size.height * 0.7), paint);
+    canvas.drawCircle(Offset(size.width * 0.3, size.height * 0.25), 8, paint);
+    
+    // 아빠 (파란색 바지)
+    paint.color = Color(0xFF2196F3);
+    canvas.drawLine(Offset(size.width * 0.7, size.height * 0.3), 
+                   Offset(size.width * 0.7, size.height * 0.7), paint);
+    canvas.drawCircle(Offset(size.width * 0.7, size.height * 0.25), 8, paint);
+  }
+
+  void _drawHouse(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..color = Color(0xFFFF5722);
+
+    // 집 모양
+    final path = Path();
+    path.moveTo(size.width * 0.2, size.height * 0.8);
+    path.lineTo(size.width * 0.2, size.height * 0.5);
+    path.lineTo(size.width * 0.5, size.height * 0.3);
+    path.lineTo(size.width * 0.8, size.height * 0.5);
+    path.lineTo(size.width * 0.8, size.height * 0.8);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawSun(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..color = Color(0xFFFFEB3B);
+
+    // 태양
+    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.5), 
+                     size.width * 0.2, paint);
+    
+    // 태양 광선
+    for (int i = 0; i < 8; i++) {
+      final angle = (i * 45) * (math.pi / 180);
+      final startX = size.width * 0.5 + math.cos(angle) * size.width * 0.25;
+      final startY = size.height * 0.5 + math.sin(angle) * size.width * 0.25;
+      final endX = size.width * 0.5 + math.cos(angle) * size.width * 0.35;
+      final endY = size.height * 0.5 + math.sin(angle) * size.width * 0.35;
+      
+      canvas.drawLine(Offset(startX, startY), Offset(endX, endY), paint);
+    }
+  }
+
+  void _drawFlower(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+
+    // 꽃잎 (분홍색)
+    paint.color = Color(0xFFE91E63);
+    for (int i = 0; i < 5; i++) {
+      final angle = (i * 72) * (math.pi / 180);
+      final x = size.width * 0.5 + math.cos(angle) * size.width * 0.2;
+      final y = size.height * 0.4 + math.sin(angle) * size.width * 0.2;
+      canvas.drawCircle(Offset(x, y), 8, paint);
+    }
+
+    // 꽃 중심 (노란색)
+    paint.color = Color(0xFFFFEB3B);
+    canvas.drawCircle(Offset(size.width * 0.5, size.height * 0.4), 6, paint);
+
+    // 줄기 (초록색)
+    paint.color = Color(0xFF4CAF50);
+    canvas.drawLine(Offset(size.width * 0.5, size.height * 0.5), 
+                   Offset(size.width * 0.5, size.height * 0.8), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// 홀로그램 패턴 효과를 위한 페인터
+class HologramPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    // 홀로그램 라인 패턴
+    for (int i = 0; i < size.height; i += 4) {
+      paint.color = Colors.white.withOpacity(0.1);
+      canvas.drawLine(
+        Offset(0, i.toDouble()),
+        Offset(size.width, i.toDouble()),
+        paint,
+      );
+    }
+
+    // 대각선 패턴
+    for (int i = 0; i < size.width + size.height; i += 8) {
+      paint.color = Colors.white.withOpacity(0.05);
+      canvas.drawLine(
+        Offset(i.toDouble(), 0),
+        Offset(i - size.height, size.height),
+        paint,
+      );
+    }
+
+    // 반짝이는 점들
+    final random = math.Random(42);
+    paint.style = PaintingStyle.fill;
+    for (int i = 0; i < 30; i++) {
+      final x = random.nextDouble() * size.width;
+      final y = random.nextDouble() * size.height;
+      paint.color = Colors.white.withOpacity(random.nextDouble() * 0.4);
+      canvas.drawCircle(Offset(x, y), random.nextDouble() * 2 + 0.5, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 } 
